@@ -18,7 +18,7 @@ deploy-job:
   stage: deploy 
   script:
     - cp $ENV_FILE .env
-    - docker-compose rm -s -f alohssh || true
-    - docker-compose -f docker-compose.yaml up -d --force-recreate alohssh
+    - docker-compose down --remove-orphans
+    - docker-compose up -d --build
     - sleep 5
     - docker-compose logs alohssh
