@@ -1,0 +1,22 @@
+app:
+  name: "aloh-ssh-server"
+  env: "local"
+  version: "1.0.0"
+  logPath: ""
+
+server:
+  host: "0.0.0.0"
+  port: "${SERVER_PORT}"
+  timeout: 5s
+
+storage:
+  user: "${POSTGRES_USER}"
+  password: "${POSTGRES_PASSWORD}"
+  database: "${POSTGRES_DB}"
+  timezone: "Europe/Minsk"
+  host: "postgres"
+  port: "5432"
+  sslMode: "${POSTGRES_SSL_MODE}"
+  connectTimeout: 10s
+  pingTimeout: 5s
+  amountOfConns: 5

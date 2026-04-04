@@ -1,0 +1,24 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build-job:
+  stage: build
+  script:
+    - docker build -t alohssh .
+
+test-job:
+  stage: test
+  script:
+    - echo "testing..."
+    - sleep 10s
+
+deploy-job:
+  stage: deploy 
+  script:
+    - cp $ENV_FILE .env
+    - docker-compose rm -s -f alohssh || true
+    - docker-compose -f docker-compose.yaml up -d --force-recreate alohssh
+    - sleep 5
+    - docker-compose logs alohssh

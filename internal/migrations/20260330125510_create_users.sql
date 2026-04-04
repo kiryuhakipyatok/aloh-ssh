@@ -1,0 +1,11 @@
+-- +goose Up
+CREATE TABLE IF NOT EXISTS users(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nickname VARCHAR(80) UNIQUE NOT NULL,
+    key VARCHAR(256) UNIQUE NOT NULL,
+    fingerprint VARCHAR(256) UNIQUE NOT NULL,
+    register_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- +goose Down
+DROP TABLE IF EXISTS users;
