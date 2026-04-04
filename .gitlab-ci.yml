@@ -1,6 +1,7 @@
 stages:
   - build
   - test
+  - migrate
   - deploy
 
 build-job:
@@ -13,6 +14,11 @@ test-job:
   script:
     - echo "testing..."
     - sleep 10s
+
+migrate-job:
+  stage: migrate
+  script:
+    - docker compose run --rm migrate up
 
 deploy-job:
   stage: deploy 
