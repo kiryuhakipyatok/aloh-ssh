@@ -37,6 +37,6 @@ RUN chmod +x ./app /usr/local/bin/goose
 COPY configs /configs
 COPY internal/migrations /migrations
 
-EXPOSE 3333
+EXPOSE 2222
 
 CMD ["./app"]
