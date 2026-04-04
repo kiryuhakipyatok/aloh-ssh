@@ -16,7 +16,7 @@ services:
   postgres:
     image: postgres:latest
     volumes:
-      - .db/postgres/data:/var/lib/postgresql
+      - pg_data:/var/lib/postgresql
     env_file:
       - .env
     ports:
@@ -46,3 +46,6 @@ networks:
   aloh-ssh-network:
     driver: bridge
     external: false
+
+volumes:
+  pg_data:
