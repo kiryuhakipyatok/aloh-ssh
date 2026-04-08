@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -18,6 +19,10 @@ type UserService interface {
 	NewUser(ctx context.Context, nickname string, key ssh.PublicKey) error
 	IsNew(ctx context.Context, nickname string, key ssh.PublicKey) (bool, error)
 	GetUserKey(ctx context.Context, nickname string) ([]byte, error)
+	AddPassword(ctx context.Context, nickname string, password []byte) error
+	DeleteUser(ctx context.Context, nickname string) error
+	SetNewKey(ctx context.Context, nickname string, key []byte) error
+	CheckPassword(ctx context.Context, nickname string, password []byte) error
 }
 
 type userService struct {
@@ -68,6 +73,24 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 	return nil
 }
 
+func (us *userService) AddPassword(ctx context.Context, nickname string, password []byte) error {
+	op := "userService.AddPassword"
+	log := us.logger.AddOp(op)
+	logUserNickname := logger.Attr("nickname", nickname)
+	log.Info("adding password to user", logUserNickname)
+	passwordHash, err := bcrypt.GenerateFromPassword(password, 12)
+	if err != nil {
+		log.Error("failed to generate password hash", logger.Err(err), logUserNickname)
+		return errs.NewAppError(op, err)
+	}
+	if err := us.userRepository.SetPassword(ctx, nickname, passwordHash); err != nil {
+		log.Error("failed to set user's password", logger.Err(err), logUserNickname)
+		return errs.NewAppError(op, err)
+	}
+	log.Info("user's password setted successfully", logUserNickname)
+	return nil
+}
+
 func (us *userService) IsNew(ctx context.Context, nickname string, key ssh.PublicKey) (bool, error) {
 	op := "userService.IsNew"
 
@@ -105,4 +128,59 @@ func (us *userService) GetUserKey(ctx context.Context, nickname string) ([]byte,
 	log.Info("user's key got successfully", logUserNickname)
 
 	return key, nil
+}
+
+func (us *userService) DeleteUser(ctx context.Context, nickname string) error {
+	op := "userService.DeleteUser"
+
+	log := us.logger.AddOp(op)
+	logUserNickname := logger.Attr("nickname", nickname)
+	log.Info("deleting user", logUserNickname)
+
+	if err := us.userRepository.Delete(ctx, nickname); err != nil {
+		log.Error("failed to delete user", logUserNickname, logger.Err(err))
+		return errs.NewAppError(op, err)
+	}
+
+	log.Info("user deleted successfully", logUserNickname)
+
+	return nil
+}
+
+func (us *userService) SetNewKey(ctx context.Context, nickname string, key []byte) error {
+	op := "userService.SetNewKey"
+	log := us.logger.AddOp(op)
+	logUserNickname := logger.Attr("nickname", nickname)
+	log.Info("setting new user's key", logUserNickname)
+
+	keyString := strings.TrimSpace(string(key))
+	fingerprint, err := utils.GenerateFingerprint([]byte(key))
+	if err != nil {
+		log.Error("failed to generatge fingerprint", logger.Err(err), logUserNickname)
+	}
+	if err := us.userRepository.NewKeys(ctx, nickname, keyString, fingerprint); err != nil {
+		log.Error("failed to set new key to user", logger.Err(err), logUserNickname)
+		return errs.NewAppError(op, err)
+	}
+
+	log.Info("new key setted successfylly", logUserNickname)
+
+	return nil
+}
+
+func (us *userService) CheckPassword(ctx context.Context, nickname string, password []byte) error {
+	op := "userService.CheckPassword"
+	log := us.logger.AddOp(op)
+	logUserNickname := logger.Attr("nickname", nickname)
+	log.Info("checking user's password", logUserNickname)
+	userPassword, err := us.userRepository.GetPassword(ctx, nickname)
+	if err != nil {
+		log.Error("failed to get user's password", logger.Err(err), logUserNickname)
+		return errs.NewAppError(op, err)
+	}
+	if err := bcrypt.CompareHashAndPassword(userPassword, password); err != nil {
+		log.Error("passwords are not equal", logger.Err(err), logUserNickname)
+		return errs.NewAppError(op, err)
+	}
+	return nil
 }

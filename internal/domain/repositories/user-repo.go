@@ -6,15 +6,16 @@ import (
 	"aloh-ssh/pkg/storage"
 	"context"
 	"errors"
-
-	"github.com/google/uuid"
 )
 
 type UserRepository interface {
 	Create(ctx context.Context, user *models.User) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, nickname string) error
 	GetKey(ctx context.Context, nickname string) ([]byte, error)
 	ExistenceCheck(ctx context.Context, nickname, key string) (bool, error)
+	SetPassword(ctx context.Context, nickname string, password []byte) error
+	NewKeys(ctx context.Context, nickname string, key, fingerprint string) error
+	GetPassword(ctx context.Context, nickname string) ([]byte, error)
 }
 
 type userRepository struct {
@@ -29,8 +30,8 @@ func NewUserRepository(s *storage.Storage) UserRepository {
 
 func (s *userRepository) Create(ctx context.Context, user *models.User) error {
 	op := "userRepository.Create"
-	query := "INSERT INTO users (id, nickname, key, fingerprint, register_time) VALUES ($1, $2, $3, $4, $5)"
-	res, err := s.storage.Pool.Exec(ctx, query, user.ID, user.Nickname, user.Key, user.Fingerprint, user.RegisterTime)
+	query := "INSERT INTO users (id, nickname, password, key, fingerprint, register_time) VALUES ($1, $2, $3, $4, $5, $6)"
+	res, err := s.storage.Pool.Exec(ctx, query, user.ID, user.Nickname, user.Password, user.Key, user.Fingerprint, user.RegisterTime)
 	if err != nil {
 		if storage.ErrorAlreadyExists(err) {
 			return errs.ErrAlreadyExists(op, err)
@@ -43,10 +44,10 @@ func (s *userRepository) Create(ctx context.Context, user *models.User) error {
 	return nil
 }
 
-func (s *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *userRepository) Delete(ctx context.Context, nickname string) error {
 	op := "userRepository.Delete"
-	query := "DELETE FROM users WHERE id = $1"
-	res, err := s.storage.Pool.Exec(ctx, query, id)
+	query := "DELETE FROM users WHERE nickname = $1"
+	res, err := s.storage.Pool.Exec(ctx, query, nickname)
 	if err != nil {
 		return errs.NewAppError(op, err)
 	}
@@ -80,4 +81,43 @@ func (s *userRepository) GetKey(ctx context.Context, nickname string) ([]byte, e
 		return nil, errs.NewAppError(op, err)
 	}
 	return []byte(key), nil
+}
+
+func (s *userRepository) SetPassword(ctx context.Context, nickname string, password []byte) error {
+	op := "userRepository.Create"
+	query := "UPDATE users SET password = $1 WHERE nickname = $2"
+	res, err := s.storage.Pool.Exec(ctx, query, password, nickname)
+	if err != nil {
+		return errs.NewAppError(op, err)
+	}
+	if res.RowsAffected() == 0 {
+		return errs.ErrNotFound(op)
+	}
+	return nil
+}
+
+func (s *userRepository) NewKeys(ctx context.Context, nickname string, key, fingerprint string) error {
+	op := "userRepository.NewKeys"
+	query := "UPDATE users SET key=$1, fingerprint=$2 WHERE nickname=$3"
+	res, err := s.storage.Pool.Exec(ctx, query, key, fingerprint, nickname)
+	if err != nil {
+		return errs.NewAppError(op, err)
+	}
+	if res.RowsAffected() == 0 {
+		return errs.ErrNotFound(op)
+	}
+	return nil
+}
+
+func (s *userRepository) GetPassword(ctx context.Context, nickname string) ([]byte, error) {
+	op := "userRepository.GetPassword"
+	query := "SELECT password FROM users WHERE nickname = $1"
+	var res []byte
+	if err := s.storage.Pool.QueryRow(ctx, query, nickname).Scan(&res); err != nil {
+		if errors.Is(err, storage.ErrNotFound()) {
+			return nil, errs.ErrNotFound(op)
+		}
+		return nil, errs.NewAppError(op, err)
+	}
+	return res, nil
 }

@@ -11,3 +11,6 @@ create-migra:
 
 docker-migrate-up:
 	@docker compose run --rm migrate up
+
+docker-migrate-down:
+	@docker compose run --rm migrate down
