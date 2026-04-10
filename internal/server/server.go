@@ -93,7 +93,7 @@ func (s *Server) requestNewKeysHandler(timeout time.Duration) ssh.RequestHandler
 			}
 			return false, []byte(err.Error())
 		}
-		log.Info("user's password added successfully", logUserNickname)
+		log.Info("user's key updated successfully", logUserNickname)
 		return true, nil
 	}
 }
