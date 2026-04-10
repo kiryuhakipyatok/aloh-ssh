@@ -5,7 +5,7 @@ services:
     env_file:
       - .env
     ports:
-      - ${SERVER_PORT}:2222
+      - 48713:${SERVER_PORT}
     depends_on:
       postgres:
         condition: service_healthy
