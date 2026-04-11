@@ -1,6 +1,6 @@
 services:
   alohssh:
-    image: alohssh:latest
+    mage: alohssh:latest
     container_name: alohssh
     env_file:
       - .env

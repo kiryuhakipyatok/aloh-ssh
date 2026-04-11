@@ -6,6 +6,7 @@ import (
 	"aloh-ssh/pkg/storage"
 	"context"
 	"errors"
+	"time"
 )
 
 type UserRepository interface {
@@ -14,7 +15,7 @@ type UserRepository interface {
 	GetKey(ctx context.Context, nickname string) ([]byte, error)
 	ExistenceCheck(ctx context.Context, nickname, key string) (bool, error)
 	SetPassword(ctx context.Context, nickname string, password []byte) error
-	NewKeys(ctx context.Context, nickname string, key, fingerprint string) error
+	NewKeys(ctx context.Context, nickname string, key, fingerprint string) (string, error)
 	GetPassword(ctx context.Context, nickname string) ([]byte, error)
 }
 
@@ -46,7 +47,7 @@ func (s *userRepository) Create(ctx context.Context, user *models.User) error {
 
 func (s *userRepository) Delete(ctx context.Context, nickname string) error {
 	op := "userRepository.Delete"
-	query := "DELETE FROM users WHERE nickname = $1"
+	query := "DELETE FROM users WHERE nickname = $1 AND register_time = $2"
 	res, err := s.storage.Pool.Exec(ctx, query, nickname)
 	if err != nil {
 		return errs.NewAppError(op, err)
@@ -96,17 +97,19 @@ func (s *userRepository) SetPassword(ctx context.Context, nickname string, passw
 	return nil
 }
 
-func (s *userRepository) NewKeys(ctx context.Context, nickname string, key, fingerprint string) error {
+func (s *userRepository) NewKeys(ctx context.Context, nickname string, key, fingerprint string) (string, error) {
 	op := "userRepository.NewKeys"
-	query := "UPDATE users SET key=$1, fingerprint=$2 WHERE nickname=$3"
-	res, err := s.storage.Pool.Exec(ctx, query, key, fingerprint, nickname)
-	if err != nil {
-		return errs.NewAppError(op, err)
+	query := "UPDATE users SET key=$1, fingerprint=$2 WHERE nickname=$3 RETURNING register_time"
+	var regTime time.Time
+	if err := s.storage.Pool.QueryRow(ctx, query, key, fingerprint, nickname).Scan(&regTime); err != nil {
+		if errors.Is(err, storage.ErrNotFound()) {
+			return "", errs.ErrNotFound(op)
+		}
+		return "", errs.NewAppError(op, err)
 	}
-	if res.RowsAffected() == 0 {
-		return errs.ErrNotFound(op)
-	}
-	return nil
+
+	regTimeString := regTime.Format("2006-01-02")
+	return regTimeString, nil
 }
 
 func (s *userRepository) GetPassword(ctx context.Context, nickname string) ([]byte, error) {

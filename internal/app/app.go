@@ -25,9 +25,9 @@ func Run() {
 	}()
 	log.Info("storage connected successfully")
 	userRepo := repositories.NewUserRepository(storage)
-	log.Info("user created successfully")
+	log.Info("users repository created successfully")
 	userService := services.NewUserService(userRepo, log)
-	log.Info("user service created successfully")
+	log.Info("users service created successfully")
 	server := server.NewServer(cfg.Server, userService, log)
 	defer func() {
 		ctx,cancel:=context.WithTimeout(context.Background(), cfg.Server.Timeout)

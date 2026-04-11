@@ -21,7 +21,7 @@ type UserService interface {
 	GetUserKey(ctx context.Context, nickname string) ([]byte, error)
 	AddPassword(ctx context.Context, nickname string, password []byte) error
 	DeleteUser(ctx context.Context, nickname string) error
-	SetNewKey(ctx context.Context, nickname string, key []byte) error
+	SetNewKey(ctx context.Context, nickname string, key []byte) (string, error)
 	CheckPassword(ctx context.Context, nickname string, password []byte) error
 }
 
@@ -49,7 +49,6 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 
 	id := uuid.New()
 	fingerprint, err := utils.GenerateFingerprint(keyBytes)
-
 	if err != nil {
 		log.Error("failed to generate finger print for user's key", logUserNickname, logger.Err(err))
 		return errs.NewAppError(op, err)
@@ -147,7 +146,7 @@ func (us *userService) DeleteUser(ctx context.Context, nickname string) error {
 	return nil
 }
 
-func (us *userService) SetNewKey(ctx context.Context, nickname string, key []byte) error {
+func (us *userService) SetNewKey(ctx context.Context, nickname string, key []byte) (string, error) {
 	op := "userService.SetNewKey"
 	log := us.logger.AddOp(op)
 	logUserNickname := logger.Attr("nickname", nickname)
@@ -158,14 +157,15 @@ func (us *userService) SetNewKey(ctx context.Context, nickname string, key []byt
 	if err != nil {
 		log.Error("failed to generatge fingerprint", logger.Err(err), logUserNickname)
 	}
-	if err := us.userRepository.NewKeys(ctx, nickname, keyString, fingerprint); err != nil {
+	regTime, err := us.userRepository.NewKeys(ctx, nickname, keyString, fingerprint)
+	if err != nil {
 		log.Error("failed to set new key to user", logger.Err(err), logUserNickname)
-		return errs.NewAppError(op, err)
+		return "", errs.NewAppError(op, err)
 	}
 
 	log.Info("new key setted successfylly", logUserNickname)
 
-	return nil
+	return regTime, nil
 }
 
 func (us *userService) CheckPassword(ctx context.Context, nickname string, password []byte) error {
