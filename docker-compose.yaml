@@ -1,6 +1,7 @@
 services:
   alohssh:
-    image: alohssh:latest
+    build: ./
+    ##image: alohssh:latest
     container_name: alohssh
     env_file:
       - .env

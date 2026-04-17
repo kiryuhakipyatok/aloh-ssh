@@ -7,6 +7,7 @@ import (
 	"aloh-ssh/pkg/errs"
 	"aloh-ssh/pkg/logger"
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -23,6 +24,7 @@ type UserService interface {
 	DeleteUser(ctx context.Context, nickname string) error
 	SetNewKey(ctx context.Context, nickname string, key []byte) (string, error)
 	CheckPassword(ctx context.Context, nickname string, password []byte) error
+	GetPersonalData(ctx context.Context, nickname string) ([]byte, error)
 }
 
 type userService struct {
@@ -55,11 +57,13 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 	}
 
 	user := new(models.User{
-		ID:           id,
-		Nickname:     nickname,
-		Key:          keyString,
-		Fingerprint:  fingerprint,
-		RegisterTime: time.Now(),
+		ID: id,
+		PersonalData: models.PersonalData{
+			Nickname:     nickname,
+			RegisterTime: time.Now(),
+		},
+		Key:         keyString,
+		Fingerprint: fingerprint,
 	})
 
 	if err := us.userRepository.Create(ctx, user); err != nil {
@@ -183,4 +187,28 @@ func (us *userService) CheckPassword(ctx context.Context, nickname string, passw
 		return errs.NewAppError(op, err)
 	}
 	return nil
+}
+
+func (us *userService) GetPersonalData(ctx context.Context, nickname string) ([]byte, error) {
+	op := "userService.GetPersonalData"
+
+	log := us.logger.AddOp(op)
+	logUserNickname := logger.Attr("nickname", nickname)
+	log.Info("getting user's personal data", logUserNickname)
+
+	personalData, err := us.userRepository.GetPersonalData(ctx, nickname)
+	if err != nil {
+		log.Error("failed to get user's personal data", logUserNickname, logger.Err(err))
+		return nil, errs.NewAppError(op, err)
+	}
+
+	personalDataBytes, err := json.Marshal(personalData)
+	if err != nil {
+		log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
+		return nil, errs.NewAppError(op, err)
+	}
+
+	log.Info("user's personal data got successfully", logUserNickname)
+
+	return personalDataBytes, nil
 }

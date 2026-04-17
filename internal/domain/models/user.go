@@ -7,10 +7,14 @@ import (
 )
 
 type User struct {
-	ID           uuid.UUID
-	Nickname     string
-	Key          string
-	Fingerprint  string
-	Password     []byte
-	RegisterTime time.Time
+	ID          uuid.UUID
+	PersonalData  PersonalData `json:"personalData"`
+	Key         string
+	Fingerprint string
+	Password    []byte
+}
+
+type PersonalData struct {
+	Nickname     string    `json:"nickname"`
+	RegisterTime time.Time `json:"registerTime"`
 }

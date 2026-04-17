@@ -35,8 +35,9 @@ func NewServer(cfg config.Server, us services.UserService, l *logger.Logger) *Se
 		Addr:             addr,
 		PublicKeyHandler: s.publicKeyHandler(cfg.Timeout),
 		RequestHandlers: map[string]ssh.RequestHandler{
-			"pswrd": s.requestPasswordHandler(cfg.Timeout),
-			"key": s.setNewKeyRequest(cfg.Timeout),
+			"pswrd":         s.requestPasswordHandler(cfg.Timeout),
+			"key":           s.setNewKeyRequest(cfg.Timeout),
+			// personal-data": s.fetchPersonalRequest(cfg.Timeout),
 		},
 		PasswordHandler: s.passwordHandler(cfg.Timeout),
 	}
@@ -48,7 +49,7 @@ func (s *Server) passwordHandler(timeout time.Duration) ssh.PasswordHandler {
 	op := "server.passwordHandler"
 	log := s.log.AddOp(op)
 	return func(ctx ssh.Context, password string) bool {
-		if ctx.ClientVersion() != LOGIN{
+		if ctx.ClientVersion() != LOGIN {
 			return false
 		}
 		nickname := ctx.User()
@@ -87,7 +88,7 @@ func (s *Server) requestPasswordHandler(timeout time.Duration) ssh.RequestHandle
 }
 
 func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
-	op := "server.Handler"
+	op := "server.publicKeyHandler"
 	log := s.log.AddOp(op)
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
 		nickname := ctx.User()
@@ -120,7 +121,7 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 }
 
 func (s *Server) setNewKeyRequest(timeout time.Duration) ssh.RequestHandler {
-	op := "server.loginRequest"
+	op := "server.setNewKeyRequest"
 	log := s.log.AddOp(op)
 	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
 		nickname := ctx.User()
@@ -137,6 +138,25 @@ func (s *Server) setNewKeyRequest(timeout time.Duration) ssh.RequestHandler {
 		return true, []byte(regTime)
 	}
 }
+
+// func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler {
+// 	op := "server.fetchPersonalRequest"
+// 	log := s.log.AddOp(op)
+// 	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+// 		nickname := ctx.User()
+// 		logUserNickname := logger.Attr("nickname", nickname)
+// 		log.Info("new fetch personal data request", logUserNickname)
+// 		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
+// 		defer cancel()
+// 		data, err := s.userService.GetPersonalData(appCtx, nickname)
+// 		if err != nil {
+// 			log.Error("failed to fetch personal data", logger.Err(err), logUserNickname)
+// 			return false, castErr(err)
+// 		}
+// 		log.Info("user's key updated successfully", logUserNickname)
+// 		return true, data
+// 	}
+// }
 
 func (s *Server) MustStart() {
 	err := s.serv.ListenAndServe()

@@ -17,6 +17,7 @@ type UserRepository interface {
 	SetPassword(ctx context.Context, nickname string, password []byte) error
 	NewKeys(ctx context.Context, nickname string, key, fingerprint string) (string, error)
 	GetPassword(ctx context.Context, nickname string) ([]byte, error)
+	GetPersonalData(ctx context.Context, nickname string) (*models.PersonalData, error)
 }
 
 type userRepository struct {
@@ -32,7 +33,7 @@ func NewUserRepository(s *storage.Storage) UserRepository {
 func (s *userRepository) Create(ctx context.Context, user *models.User) error {
 	op := "userRepository.Create"
 	query := "INSERT INTO users (id, nickname, password, key, fingerprint, register_time) VALUES ($1, $2, $3, $4, $5, $6)"
-	res, err := s.storage.Pool.Exec(ctx, query, user.ID, user.Nickname, user.Password, user.Key, user.Fingerprint, user.RegisterTime)
+	res, err := s.storage.Pool.Exec(ctx, query, user.ID, user.PersonalData.Nickname, user.Password, user.Key, user.Fingerprint, user.PersonalData.RegisterTime)
 	if err != nil {
 		if storage.ErrorAlreadyExists(err) {
 			return errs.ErrAlreadyExists(op, err)
@@ -123,4 +124,17 @@ func (s *userRepository) GetPassword(ctx context.Context, nickname string) ([]by
 		return nil, errs.NewAppError(op, err)
 	}
 	return res, nil
+}
+
+func (s *userRepository) GetPersonalData(ctx context.Context, nickname string) (*models.PersonalData, error) {
+	op := "userRepository.GetPersonalData"
+	query := "SELECT nickname, register_time FROM users WHERE nickname = $1"
+	pd := &models.PersonalData{}
+	if err := s.storage.Pool.QueryRow(ctx, query, nickname).Scan(&pd.Nickname, &pd.RegisterTime); err != nil {
+		if errors.Is(err, storage.ErrNotFound()) {
+			return nil, errs.ErrNotFound(op)
+		}
+		return nil, errs.NewAppError(op, err)
+	}
+	return pd, nil
 }
