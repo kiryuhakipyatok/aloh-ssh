@@ -7,7 +7,6 @@ import (
 	"aloh-ssh/pkg/errs"
 	"aloh-ssh/pkg/logger"
 	"context"
-	"encoding/json"
 	"strings"
 	"time"
 
@@ -18,13 +17,13 @@ import (
 
 type UserService interface {
 	NewUser(ctx context.Context, nickname string, key ssh.PublicKey) error
-	IsNew(ctx context.Context, nickname string, key ssh.PublicKey) (bool, error)
+	//IsNew(ctx context.Context, nickname string, key ssh.PublicKey) (bool, error)
 	GetUserKey(ctx context.Context, nickname string) ([]byte, error)
 	AddPassword(ctx context.Context, nickname string, password []byte) error
 	DeleteUser(ctx context.Context, nickname string) error
 	SetNewKey(ctx context.Context, nickname string, key []byte) (string, error)
 	CheckPassword(ctx context.Context, nickname string, password []byte) error
-	GetPersonalData(ctx context.Context, nickname string) ([]byte, error)
+	//GetPersonalData(ctx context.Context, nickname string) ([]byte, error)
 }
 
 type userService struct {
@@ -94,26 +93,26 @@ func (us *userService) AddPassword(ctx context.Context, nickname string, passwor
 	return nil
 }
 
-func (us *userService) IsNew(ctx context.Context, nickname string, key ssh.PublicKey) (bool, error) {
-	op := "userService.IsNew"
+// func (us *userService) IsNew(ctx context.Context, nickname string, key ssh.PublicKey) (bool, error) {
+// 	op := "userService.IsNew"
 
-	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", nickname)
-	log.Info("user is new checking", logUserNickname)
+// 	log := us.logger.AddOp(op)
+// 	logUserNickname := logger.Attr("nickname", nickname)
+// 	log.Info("user is new checking", logUserNickname)
 
-	keyBytes := ssh.MarshalAuthorizedKey(key)
-	keyString := strings.TrimSpace(string(keyBytes))
+// 	keyBytes := ssh.MarshalAuthorizedKey(key)
+// 	keyString := strings.TrimSpace(string(keyBytes))
 
-	res, err := us.userRepository.ExistenceCheck(ctx, nickname, keyString)
-	if err != nil {
-		log.Error("failed to check user's existance", logUserNickname, logger.Err(err))
-		return false, errs.NewAppError(op, err)
-	}
+// 	res, err := us.userRepository.ExistenceCheck(ctx, nickname, keyString)
+// 	if err != nil {
+// 		log.Error("failed to check user's existance", logUserNickname, logger.Err(err))
+// 		return false, errs.NewAppError(op, err)
+// 	}
 
-	log.Info("user's existance checked successfully", logUserNickname)
+// 	log.Info("user's existance checked successfully", logUserNickname)
 
-	return res, nil
-}
+// 	return res, nil
+// }
 
 func (us *userService) GetUserKey(ctx context.Context, nickname string) ([]byte, error) {
 	op := "userService.IsNew"
@@ -189,26 +188,26 @@ func (us *userService) CheckPassword(ctx context.Context, nickname string, passw
 	return nil
 }
 
-func (us *userService) GetPersonalData(ctx context.Context, nickname string) ([]byte, error) {
-	op := "userService.GetPersonalData"
+// func (us *userService) GetPersonalData(ctx context.Context, nickname string) ([]byte, error) {
+// 	op := "userService.GetPersonalData"
 
-	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", nickname)
-	log.Info("getting user's personal data", logUserNickname)
+// 	log := us.logger.AddOp(op)
+// 	logUserNickname := logger.Attr("nickname", nickname)
+// 	log.Info("getting user's personal data", logUserNickname)
 
-	personalData, err := us.userRepository.GetPersonalData(ctx, nickname)
-	if err != nil {
-		log.Error("failed to get user's personal data", logUserNickname, logger.Err(err))
-		return nil, errs.NewAppError(op, err)
-	}
+// 	personalData, err := us.userRepository.GetPersonalData(ctx, nickname)
+// 	if err != nil {
+// 		log.Error("failed to get user's personal data", logUserNickname, logger.Err(err))
+// 		return nil, errs.NewAppError(op, err)
+// 	}
 
-	personalDataBytes, err := json.Marshal(personalData)
-	if err != nil {
-		log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
-		return nil, errs.NewAppError(op, err)
-	}
+// 	personalDataBytes, err := json.Marshal(personalData)
+// 	if err != nil {
+// 		log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
+// 		return nil, errs.NewAppError(op, err)
+// 	}
 
-	log.Info("user's personal data got successfully", logUserNickname)
+// 	log.Info("user's personal data got successfully", logUserNickname)
 
-	return personalDataBytes, nil
-}
+// 	return personalDataBytes, nil
+// }

@@ -13,11 +13,11 @@ type UserRepository interface {
 	Create(ctx context.Context, user *models.User) error
 	Delete(ctx context.Context, nickname string) error
 	GetKey(ctx context.Context, nickname string) ([]byte, error)
-	ExistenceCheck(ctx context.Context, nickname, key string) (bool, error)
+	//ExistenceCheck(ctx context.Context, nickname, key string) (bool, error)
 	SetPassword(ctx context.Context, nickname string, password []byte) error
 	NewKeys(ctx context.Context, nickname string, key, fingerprint string) (string, error)
 	GetPassword(ctx context.Context, nickname string) ([]byte, error)
-	GetPersonalData(ctx context.Context, nickname string) (*models.PersonalData, error)
+	//GetPersonalData(ctx context.Context, nickname string) (*models.PersonalData, error)
 }
 
 type userRepository struct {
@@ -59,18 +59,18 @@ func (s *userRepository) Delete(ctx context.Context, nickname string) error {
 	return nil
 }
 
-func (s *userRepository) ExistenceCheck(ctx context.Context, nickname, key string) (bool, error) {
-	op := "userRepository.ExistenceCheck"
-	query := "SELECT 1 FROM users WHERE nickname = $1 and key = $2"
-	var res int
-	if err := s.storage.Pool.QueryRow(ctx, query, nickname, key).Scan(&res); err != nil {
-		if errors.Is(err, storage.ErrNotFound()) {
-			return false, errs.ErrNotFound(op)
-		}
-		return false, errs.NewAppError(op, err)
-	}
-	return res == 1, nil
-}
+// func (s *userRepository) ExistenceCheck(ctx context.Context, nickname, key string) (bool, error) {
+// 	op := "userRepository.ExistenceCheck"
+// 	query := "SELECT 1 FROM users WHERE nickname = $1 and key = $2"
+// 	var res int
+// 	if err := s.storage.Pool.QueryRow(ctx, query, nickname, key).Scan(&res); err != nil {
+// 		if errors.Is(err, storage.ErrNotFound()) {
+// 			return false, errs.ErrNotFound(op)
+// 		}
+// 		return false, errs.NewAppError(op, err)
+// 	}
+// 	return res == 1, nil
+// }
 
 func (s *userRepository) GetKey(ctx context.Context, nickname string) ([]byte, error) {
 	op := "userRepository.GetKey"

@@ -56,7 +56,6 @@ func (s *Server) passwordHandler(timeout time.Duration) ssh.PasswordHandler {
 		logUserNickname := logger.Attr("nickname", nickname)
 		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		fmt.Println(password)
 		if err := s.userService.CheckPassword(appCtx, nickname, []byte(password)); err != nil {
 			log.Error("failed to check password", logger.Err(err), logUserNickname)
 			return false
