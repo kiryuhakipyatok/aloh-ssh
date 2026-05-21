@@ -7,7 +7,7 @@ app:
 server:
   host: "0.0.0.0"
   port: "${SERVER_PORT}"
-  timeout: 5s
+  timeout: 10s
 
 storage:
   user: "${POSTGRES_USER}"
