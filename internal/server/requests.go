@@ -79,7 +79,7 @@ func (s *Server) newFriendRequest(timeout time.Duration) ssh.RequestHandler {
 			log.Error("failed to get friend's session", logger.Err(err))
 			return false, castErr(err)
 		}
-		newFriendEvent := models.NewFriendEvent(friendNickname)
+		newFriendEvent := models.NewFriendEvent(nickname)
 		select {
 		case friendSession.EventsChan <- newFriendEvent:
 		default:
