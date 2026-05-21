@@ -78,14 +78,20 @@ func (s *userRepository) Delete(ctx context.Context, nickname string) error {
 func (s *userRepository) GetUser(ctx context.Context, nickname string) (*models.User, error) {
 	op := "userRepository.GetUser"
 	query := "SELECT id, nickname, key, fingerprint, register_time FROM users WHERE nickname = $1"
-	var user *models.User
-	if err := s.storage.Pool.QueryRow(ctx, query, nickname).Scan(&user); err != nil {
+	var user models.User
+	if err := s.storage.Pool.QueryRow(ctx, query, nickname).Scan(
+		&user.ID,
+		&user.PersonalData.Nickname,
+		&user.Key,
+		&user.Fingerprint,
+		&user.PersonalData.RegisterTime,
+	); err != nil {
 		if errors.Is(err, storage.ErrNotFound()) {
 			return nil, errs.ErrNotFound(op)
 		}
 		return nil, errs.NewAppError(op, err)
 	}
-	return user, nil
+	return &user, nil
 }
 
 func (s *userRepository) SetPassword(ctx context.Context, nickname string, password []byte) error {
