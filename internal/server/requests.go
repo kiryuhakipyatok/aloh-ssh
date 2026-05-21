@@ -102,6 +102,9 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 	go gossh.DiscardRequests(requests)
 	nickname := ctx.User()
 	logUserNickname := logger.Attr("nickname", nickname)
+
+	log.Info("event channel accepted successfully", logUserNickname)
+
 	userID, ok := ctx.Value("userID").(uuid.UUID)
 	if !ok {
 		log.Error("failed to get user id", logUserNickname)
