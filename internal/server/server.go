@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/charmbracelet/ssh"
-	gossh "golang.org/x/crypto/ssh"
 )
 
 type Server struct {
-	serv        *ssh.Server
-	userService services.UserService
-	log         *logger.Logger
+	serv           *ssh.Server
+	userService    services.UserService
+	//sessionService services.SessionService
+	log            *logger.Logger
 }
 
 const (
@@ -35,12 +35,14 @@ func NewServer(cfg config.Server, us services.UserService, l *logger.Logger) *Se
 		Addr:             addr,
 		PublicKeyHandler: s.publicKeyHandler(cfg.Timeout),
 		RequestHandlers: map[string]ssh.RequestHandler{
-			"pswrd":         s.requestPasswordHandler(cfg.Timeout),
-			"key":           s.setNewKeyRequest(cfg.Timeout),
+			"pswrd":      s.passwordRequest(cfg.Timeout),
+			"key":        s.setNewKeyRequest(cfg.Timeout),
+			"new-friend": s.newFriendRequest(cfg.Timeout),
 			// personal-data": s.fetchPersonalRequest(cfg.Timeout),
 		},
 		PasswordHandler: s.passwordHandler(cfg.Timeout),
 	}
+
 	s.serv = server
 	return s
 }
@@ -56,33 +58,13 @@ func (s *Server) passwordHandler(timeout time.Duration) ssh.PasswordHandler {
 		logUserNickname := logger.Attr("nickname", nickname)
 		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		if err := s.userService.CheckPassword(appCtx, nickname, []byte(password)); err != nil {
+		id, err := s.userService.CheckPassword(appCtx, nickname, []byte(password))
+		if err != nil {
 			log.Error("failed to check password", logger.Err(err), logUserNickname)
 			return false
 		}
+		ctx.SetValue("userID", id)
 		return true
-	}
-}
-
-func (s *Server) requestPasswordHandler(timeout time.Duration) ssh.RequestHandler {
-	op := "server.requestPasswordHandler"
-	log := s.log.AddOp(op)
-	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
-		nickname := ctx.User()
-		logUserNickname := logger.Attr("nickname", nickname)
-		log.Info("new password request", logUserNickname)
-		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-
-		if err := s.userService.AddPassword(appCtx, nickname, req.Payload); err != nil {
-			log.Error("failed to add user's password", logger.Err(err), logUserNickname)
-			if err := s.userService.DeleteUser(ctx, nickname); err != nil {
-				log.Error("failed to delete user", logUserNickname, logger.Err(err))
-			}
-			return false, castErr(err)
-		}
-		log.Info("user's password added successfully", logUserNickname)
-		return true, nil
 	}
 }
 
@@ -97,44 +79,39 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 		defer cancel()
 		switch ctx.ClientVersion() {
 		case REGISTER:
-			if err := s.userService.NewUser(appCtx, nickname, key); err != nil {
+			id, err := s.userService.NewUser(appCtx, nickname, key)
+			if err != nil {
 				log.Error("failed to create new user", logger.Err(err), logUserNickname)
 				return false
 			}
+			ctx.SetValue("userID", id)
+			// if err := s.sessionService.NewSession(appCtx, id); err != nil {
+			// 	log.Error("failed to create session", logger.Err(err), logUserNickname)
+			// 	return false
+			// }
 			return true
 		default:
-			userKeyByte, err := s.userService.GetUserKey(ctx, nickname)
+			user, err := s.userService.GetUser(ctx, nickname)
 			if err != nil {
 				log.Error("failed to get user's key", logger.Err(err), logUserNickname)
 				return false
 			}
-			userKey, _, _, _, err := ssh.ParseAuthorizedKey(userKeyByte)
+			userKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(user.Key))
 			if err != nil {
 				log.Error("failed to parse user's key", logger.Err(err), logUserNickname)
 				return false
 			}
-			return ssh.KeysEqual(userKey, key)
+			equal := ssh.KeysEqual(userKey, key)
+			if equal {
+				ctx.SetValue("userID", user.ID)
+				// if err := s.sessionService.NewSession(appCtx, user.ID); err != nil {
+				// 	log.Error("failed to create session", logger.Err(err), logUserNickname)
+				// 	return false
+				// }
+			}
+			return equal
 		}
 
-	}
-}
-
-func (s *Server) setNewKeyRequest(timeout time.Duration) ssh.RequestHandler {
-	op := "server.setNewKeyRequest"
-	log := s.log.AddOp(op)
-	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
-		nickname := ctx.User()
-		logUserNickname := logger.Attr("nickname", nickname)
-		log.Info("new login request", logUserNickname)
-		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-		regTime, err := s.userService.SetNewKey(appCtx, nickname, req.Payload)
-		if err != nil {
-			log.Error("failed to set user's new keys", logger.Err(err), logUserNickname)
-			return false, castErr(err)
-		}
-		log.Info("user's key updated successfully", logUserNickname)
-		return true, []byte(regTime)
 	}
 }
 

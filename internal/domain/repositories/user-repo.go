@@ -7,16 +7,19 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type UserRepository interface {
 	Create(ctx context.Context, user *models.User) error
 	Delete(ctx context.Context, nickname string) error
-	GetKey(ctx context.Context, nickname string) ([]byte, error)
+	GetUser(ctx context.Context, nickname string) (*models.User, error)
 	//ExistenceCheck(ctx context.Context, nickname, key string) (bool, error)
 	SetPassword(ctx context.Context, nickname string, password []byte) error
 	NewKeys(ctx context.Context, nickname string, key, fingerprint string) (string, error)
-	GetPassword(ctx context.Context, nickname string) ([]byte, error)
+	GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error)
+	NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) error
 	//GetPersonalData(ctx context.Context, nickname string) (*models.PersonalData, error)
 }
 
@@ -72,17 +75,17 @@ func (s *userRepository) Delete(ctx context.Context, nickname string) error {
 // 	return res == 1, nil
 // }
 
-func (s *userRepository) GetKey(ctx context.Context, nickname string) ([]byte, error) {
-	op := "userRepository.GetKey"
-	query := "SELECT key FROM users WHERE nickname = $1"
-	var key string
-	if err := s.storage.Pool.QueryRow(ctx, query, nickname).Scan(&key); err != nil {
+func (s *userRepository) GetUser(ctx context.Context, nickname string) (*models.User, error) {
+	op := "userRepository.GetUser"
+	query := "SELECT id, nickname, key, fingerpring, register_time FROM users WHERE nickname = $1"
+	var user *models.User
+	if err := s.storage.Pool.QueryRow(ctx, query, nickname).Scan(&user); err != nil {
 		if errors.Is(err, storage.ErrNotFound()) {
 			return nil, errs.ErrNotFound(op)
 		}
 		return nil, errs.NewAppError(op, err)
 	}
-	return []byte(key), nil
+	return user, nil
 }
 
 func (s *userRepository) SetPassword(ctx context.Context, nickname string, password []byte) error {
@@ -113,17 +116,20 @@ func (s *userRepository) NewKeys(ctx context.Context, nickname string, key, fing
 	return regTimeString, nil
 }
 
-func (s *userRepository) GetPassword(ctx context.Context, nickname string) ([]byte, error) {
+func (s *userRepository) GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error) {
 	op := "userRepository.GetPassword"
 	query := "SELECT password FROM users WHERE nickname = $1"
-	var res []byte
+	var res struct {
+		pswrd []byte
+		id    uuid.UUID
+	}
 	if err := s.storage.Pool.QueryRow(ctx, query, nickname).Scan(&res); err != nil {
 		if errors.Is(err, storage.ErrNotFound()) {
-			return nil, errs.ErrNotFound(op)
+			return nil, uuid.UUID{}, errs.ErrNotFound(op)
 		}
-		return nil, errs.NewAppError(op, err)
+		return nil, uuid.UUID{}, errs.NewAppError(op, err)
 	}
-	return res, nil
+	return res.pswrd, res.id, nil
 }
 
 func (s *userRepository) GetPersonalData(ctx context.Context, nickname string) (*models.PersonalData, error) {
@@ -137,4 +143,17 @@ func (s *userRepository) GetPersonalData(ctx context.Context, nickname string) (
 		return nil, errs.NewAppError(op, err)
 	}
 	return pd, nil
+}
+
+func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) error {
+	op := "userRepository.NewFriendRequest"
+	query := "INSERT INTO friends (user_id1, user_id2) SELECT (LEAST($1, id), GREATEST($1, id)) FROM users WHERE nickname = $2"
+	res, err := s.storage.Pool.Exec(ctx, query, userId, nickname)
+	if err != nil {
+		return errs.NewAppError(op, err)
+	}
+	if res.RowsAffected() == 0 {
+		return errs.ErrNotFound(op)
+	}
+	return nil
 }
