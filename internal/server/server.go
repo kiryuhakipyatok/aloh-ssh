@@ -29,8 +29,9 @@ const (
 func NewServer(cfg config.Server, ss services.SessionService, us services.UserService, l *logger.Logger) *Server {
 	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 	s := &Server{
-		userService: us,
-		log:         l,
+		userService:    us,
+		sessionService: ss,
+		log:            l,
 	}
 	server := &ssh.Server{
 		Addr:             addr,
