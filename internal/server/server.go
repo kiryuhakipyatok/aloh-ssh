@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/charmbracelet/ssh"
+	"github.com/google/uuid"
 )
 
 type Server struct {
 	serv           *ssh.Server
 	userService    services.UserService
-	//sessionService services.SessionService
+	sessionService services.SessionService
 	log            *logger.Logger
 }
 
@@ -25,7 +26,7 @@ const (
 	DEFAULT  = "SSH-2.0-aloh-default"
 )
 
-func NewServer(cfg config.Server, us services.UserService, l *logger.Logger) *Server {
+func NewServer(cfg config.Server, ss services.SessionService, us services.UserService, l *logger.Logger) *Server {
 	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 	s := &Server{
 		userService: us,
@@ -33,6 +34,7 @@ func NewServer(cfg config.Server, us services.UserService, l *logger.Logger) *Se
 	}
 	server := &ssh.Server{
 		Addr:             addr,
+		Handler:          s.sessionHandler,
 		PublicKeyHandler: s.publicKeyHandler(cfg.Timeout),
 		RequestHandlers: map[string]ssh.RequestHandler{
 			"pswrd":      s.passwordRequest(cfg.Timeout),
@@ -85,10 +87,10 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 				return false
 			}
 			ctx.SetValue("userID", id)
-			// if err := s.sessionService.NewSession(appCtx, id); err != nil {
-			// 	log.Error("failed to create session", logger.Err(err), logUserNickname)
-			// 	return false
-			// }
+			if err := s.sessionService.NewSession(appCtx, id); err != nil {
+				log.Error("failed to create session", logger.Err(err), logUserNickname)
+				return false
+			}
 			return true
 		default:
 			user, err := s.userService.GetUser(ctx, nickname)
@@ -104,15 +106,32 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 			equal := ssh.KeysEqual(userKey, key)
 			if equal {
 				ctx.SetValue("userID", user.ID)
-				// if err := s.sessionService.NewSession(appCtx, user.ID); err != nil {
-				// 	log.Error("failed to create session", logger.Err(err), logUserNickname)
-				// 	return false
-				// }
+				if err := s.sessionService.NewSession(appCtx, user.ID); err != nil {
+					log.Error("failed to create session", logger.Err(err), logUserNickname)
+					return false
+				}
 			}
 			return equal
 		}
 
 	}
+}
+
+func (s *Server) sessionHandler(session ssh.Session) {
+	go func() {
+		<-session.Context().Done()
+		nicknameLog := logger.Attr("user", session.User())
+
+		s.log.Info("session closed", nicknameLog)
+		userId, ok := session.Context().Value("userID").(uuid.UUID)
+		if ok {
+			if err := s.sessionService.DeleteSession(context.Background(), userId); err != nil {
+				s.log.Error("failed to get user id", logger.Err(err), nicknameLog)
+			}
+			s.log.Info("session deleted successfully", nicknameLog)
+		}
+	}()
+
 }
 
 // func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler {

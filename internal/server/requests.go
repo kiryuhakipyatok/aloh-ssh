@@ -76,19 +76,33 @@ func (s *Server) newFriendRequest(timeout time.Duration) ssh.RequestHandler {
 	}
 }
 
-// func (s *Server) receiveNewFriendsRequests() ssh.RequestHandler {
-// 	op := "server.receiveNewFriendsRequests"
+// func (s *Server) proccessSessionMessagesRequests() ssh.RequestHandler {
+// 	op := "server.proccessSessionMessagesRequests"
 // 	log := s.log.AddOp(op)
 // 	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
 // 		nickname := ctx.User()
 // 		logUserNickname := logger.Attr("nickname", nickname)
-// 		log.Info("new login request", logUserNickname)
+// 		log.Info("proccess session messages request", logUserNickname)
 // 		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
 // 		defer cancel()
 // 		userID, ok := ctx.Value("userID").(uuid.UUID)
 // 		if !ok {
 // 			log.Error("failed to get user id", logUserNickname)
 // 			return false, castErr(errs.ErrInvalidType(op))
+// 		}
+// 		userSession, err := s.sessionService.GetSession(appCtx, userID)
+// 		if err != nil {
+// 			log.Error("failed to get user's session", logger.Err(err), logUserNickname)
+// 			return false, castErr(err)
+// 		}
+// 		for {
+// 			select {
+// 			case msg := <-userSession.MessagesChan:
+// 				switch msg.Type{
+// 				case models.NEW_FRIEND:
+
+// 				}
+// 			}
 // 		}
 // 		friendNickname := string(req.Payload)
 // 		if err := s.userService.NewFriend(appCtx, userID, friendNickname); err != nil {

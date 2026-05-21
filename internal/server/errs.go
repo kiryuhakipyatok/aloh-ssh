@@ -3,6 +3,7 @@ package server
 import (
 	"aloh-ssh/pkg/errs"
 	"errors"
+	"log"
 )
 
 const (
@@ -27,5 +28,6 @@ func castErr(err error) []byte {
 	} else {
 		res = append(res, SERVER_ERROR)
 	}
+	log.Println(string(res))
 	return res
 }
