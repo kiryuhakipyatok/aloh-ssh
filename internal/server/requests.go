@@ -60,7 +60,7 @@ func (s *Server) newFriendRequest(timeout time.Duration) ssh.RequestHandler {
 	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
 		nickname := ctx.User()
 		logUserNickname := logger.Attr("nickname", nickname)
-		log.Info("new login request", logUserNickname)
+		log.Info("new friend request", logUserNickname)
 		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		userID, ok := ctx.Value("userID").(uuid.UUID)

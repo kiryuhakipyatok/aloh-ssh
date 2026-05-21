@@ -153,9 +153,17 @@ func (s *userRepository) GetPersonalData(ctx context.Context, nickname string) (
 
 func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error) {
 	op := "userRepository.NewFriendRequest"
-	query := "INSERT INTO friends (user_id1, user_id2) SELECT LEAST($1, id), GREATEST($1, id) FROM users WHERE nickname = $2 RETURNING id"
+	query := `WITH found_user AS (
+    			SELECT id FROM users WHERE nickname = $2 AND id != $1
+			),
+			inserted_friend AS (
+    			INSERT INTO friends (user_id1, user_id2)
+    			SELECT LEAST($1, id), GREATEST($1, id) FROM found_user
+			)
+			SELECT id FROM found_user;`
 	var id uuid.UUID
-	if err := s.storage.Pool.QueryRow(ctx, query, userId, nickname).Scan(&id); err != nil {
+	err := s.storage.Pool.QueryRow(ctx, query, userId, nickname).Scan(&id)
+	if err != nil {
 		if storage.ErrorAlreadyExists(err) {
 			return uuid.UUID{}, errs.ErrAlreadyExists(op, err)
 		} else if errors.Is(err, storage.ErrNotFound()) {
@@ -163,9 +171,6 @@ func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID,
 		}
 		return uuid.UUID{}, errs.NewAppError(op, err)
 	}
+
 	return id, nil
 }
-
-// func (s *userRepository) AcceptFriend(ctx context.Context, nickname string) error{
-
-// }
