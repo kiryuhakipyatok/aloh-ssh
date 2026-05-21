@@ -3,7 +3,6 @@ package server
 import (
 	"aloh-ssh/pkg/errs"
 	"errors"
-	"log"
 )
 
 const (
@@ -14,20 +13,13 @@ const (
 )
 
 func castErr(err error) []byte {
-	res := make([]byte, 0, 1)
-	apperr, ok := errors.AsType[errs.AppError](err)
-	if ok {
-		switch apperr {
-		case errs.ErrAlreadyExistsBase:
-			res = append(res, ALREADY_EXISTS)
-		case errs.ErrNotFoundBase:
-			res = append(res, NOT_FOUND)
-		default:
-			res = append(res, SERVER_ERROR)
-		}
-	} else {
-		res = append(res, SERVER_ERROR)
+	if errors.Is(err, errs.ErrAlreadyExistsBase) {
+		return []byte{ALREADY_EXISTS}
 	}
-	log.Println(string(res))
-	return res
+
+	if errors.Is(err, errs.ErrNotFoundBase) {
+		return []byte{NOT_FOUND}
+	}
+
+	return []byte{SERVER_ERROR}
 }
