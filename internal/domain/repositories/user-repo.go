@@ -156,6 +156,11 @@ func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID,
 	query := "INSERT INTO friends (user_id1, user_id2) SELECT LEAST($1, id), GREATEST($1, id) FROM users WHERE nickname = $2"
 	res, err := s.storage.Pool.Exec(ctx, query, userId, nickname)
 	if err != nil {
+		if storage.ErrorAlreadyExists(err) {
+			return errs.ErrAlreadyExists(op, err)
+		} else if errors.Is(err, storage.ErrNotFound()) {
+			return errs.ErrNotFound(op)
+		}
 		return errs.NewAppError(op, err)
 	}
 	if res.RowsAffected() == 0 {
