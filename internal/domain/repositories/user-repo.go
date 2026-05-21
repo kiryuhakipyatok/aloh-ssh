@@ -77,7 +77,7 @@ func (s *userRepository) Delete(ctx context.Context, nickname string) error {
 
 func (s *userRepository) GetUser(ctx context.Context, nickname string) (*models.User, error) {
 	op := "userRepository.GetUser"
-	query := "SELECT id, nickname, key, fingerpring, register_time FROM users WHERE nickname = $1"
+	query := "SELECT id, nickname, key, fingerprint, register_time FROM users WHERE nickname = $1"
 	var user *models.User
 	if err := s.storage.Pool.QueryRow(ctx, query, nickname).Scan(&user); err != nil {
 		if errors.Is(err, storage.ErrNotFound()) {
