@@ -19,7 +19,7 @@ type UserRepository interface {
 	SetPassword(ctx context.Context, nickname string, password []byte) error
 	NewKeys(ctx context.Context, nickname string, key, fingerprint string) (string, error)
 	GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error)
-	NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) error
+	NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error)
 	//GetPersonalData(ctx context.Context, nickname string) (*models.PersonalData, error)
 }
 
@@ -151,20 +151,21 @@ func (s *userRepository) GetPersonalData(ctx context.Context, nickname string) (
 	return pd, nil
 }
 
-func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) error {
+func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error) {
 	op := "userRepository.NewFriendRequest"
-	query := "INSERT INTO friends (user_id1, user_id2) SELECT LEAST($1, id), GREATEST($1, id) FROM users WHERE nickname = $2"
-	res, err := s.storage.Pool.Exec(ctx, query, userId, nickname)
-	if err != nil {
+	query := "INSERT INTO friends (user_id1, user_id2) SELECT LEAST($1, id), GREATEST($1, id) FROM users WHERE nickname = $2 RETURNING id"
+	var id uuid.UUID
+	if err := s.storage.Pool.QueryRow(ctx, query, userId, nickname).Scan(&id); err != nil {
 		if storage.ErrorAlreadyExists(err) {
-			return errs.ErrAlreadyExists(op, err)
+			return uuid.UUID{}, errs.ErrAlreadyExists(op, err)
 		} else if errors.Is(err, storage.ErrNotFound()) {
-			return errs.ErrNotFound(op)
+			return uuid.UUID{}, errs.ErrNotFound(op)
 		}
-		return errs.NewAppError(op, err)
+		return uuid.UUID{}, errs.NewAppError(op, err)
 	}
-	if res.RowsAffected() == 0 {
-		return errs.ErrNotFound(op)
-	}
-	return nil
+	return id, nil
 }
+
+// func (s *userRepository) AcceptFriend(ctx context.Context, nickname string) error{
+
+// }

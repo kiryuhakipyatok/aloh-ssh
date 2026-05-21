@@ -1,0 +1,33 @@
+package models
+
+const (
+	NEW_FRIEND = iota
+	ACCEPT_FRIEND
+	DENY_FRIEND
+)
+
+type Event struct {
+	Type uint   `json:"type"`
+	Data string `json:"data"`
+}
+
+func NewFriendEvent(nickname string) Event {
+	return Event{
+		Type: NEW_FRIEND,
+		Data: nickname,
+	}
+}
+
+func AcceptFriendEvent(nickname string) Event {
+	return Event{
+		Type: ACCEPT_FRIEND,
+		Data: nickname,
+	}
+}
+
+func DenyFriendEvent(nickname string) Event {
+	return Event{
+		Type: DENY_FRIEND,
+		Data: nickname,
+	}
+}

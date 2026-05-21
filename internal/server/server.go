@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/ssh"
-	"github.com/google/uuid"
 )
 
 type Server struct {
@@ -34,14 +33,17 @@ func NewServer(cfg config.Server, ss services.SessionService, us services.UserSe
 		log:            l,
 	}
 	server := &ssh.Server{
-		Addr:             addr,
-		Handler:          s.sessionHandler,
+		Addr: addr,
+		//Handler:          s.sessionHandler,
 		PublicKeyHandler: s.publicKeyHandler(cfg.Timeout),
 		RequestHandlers: map[string]ssh.RequestHandler{
 			"pswrd":      s.passwordRequest(cfg.Timeout),
 			"key":        s.setNewKeyRequest(cfg.Timeout),
 			"new-friend": s.newFriendRequest(cfg.Timeout),
 			// personal-data": s.fetchPersonalRequest(cfg.Timeout),
+		},
+		ChannelHandlers: map[string]ssh.ChannelHandler{
+			"event-channel": s.proccessEventChannel,
 		},
 		PasswordHandler: s.passwordHandler(cfg.Timeout),
 	}
@@ -118,22 +120,26 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 	}
 }
 
-func (s *Server) sessionHandler(session ssh.Session) {
-	go func() {
-		<-session.Context().Done()
-		nicknameLog := logger.Attr("user", session.User())
+// func (s *Server) sessionHandler(session ssh.Session) {
+// 	go func() {
+// 		nicknameLog := logger.Attr("user", session.User())
 
-		s.log.Info("session closed", nicknameLog)
-		userId, ok := session.Context().Value("userID").(uuid.UUID)
-		if ok {
-			if err := s.sessionService.DeleteSession(context.Background(), userId); err != nil {
-				s.log.Error("failed to get user id", logger.Err(err), nicknameLog)
-			}
-			s.log.Info("session deleted successfully", nicknameLog)
-		}
-	}()
+// 		s.log.Info("session closed", nicknameLog)
+// 		userId, ok := session.Context().Value("userID").(uuid.UUID)
+// 		if !ok {
+// 			s.log.Error("failed to get user id", nicknameLog)
+// 			return
+// 		}
+// 		defer func() {
+// 			if err := s.sessionService.DeleteSession(context.Background(), userId); err != nil {
+// 				s.log.Error("failed to delete session", logger.Err(err), nicknameLog)
+// 			}
+// 			s.log.Info("session deleted successfully", nicknameLog)
+// 		}()
+// 		<-session.Context().Done()
+// 	}()
 
-}
+// }
 
 // func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler {
 // 	op := "server.fetchPersonalRequest"

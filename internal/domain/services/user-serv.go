@@ -22,7 +22,7 @@ type UserService interface {
 	AddPassword(ctx context.Context, nickname string, password []byte) error
 	DeleteUser(ctx context.Context, nickname string) error
 	SetNewKey(ctx context.Context, nickname string, key []byte) (string, error)
-	NewFriend(ctx context.Context, userID uuid.UUID, nickname string) error
+	NewFriend(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error)
 	CheckPassword(ctx context.Context, nickname string, password []byte) (uuid.UUID, error)
 	//GetPersonalData(ctx context.Context, nickname string) ([]byte, error)
 }
@@ -189,20 +189,21 @@ func (us *userService) CheckPassword(ctx context.Context, nickname string, passw
 	return id, nil
 }
 
-func (us *userService) NewFriend(ctx context.Context, userID uuid.UUID, nickname string) error {
+func (us *userService) NewFriend(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error) {
 	op := "userService.NewFriend"
 	log := us.logger.AddOp(op)
 	logUserNickname := logger.Attr("nickname", nickname)
 	log.Info("additing new friend request", logUserNickname)
 
-	if err := us.userRepository.NewFriendRequest(ctx, userID, nickname); err != nil {
+	friendId, err := us.userRepository.NewFriendRequest(ctx, userID, nickname)
+	if err != nil {
 		log.Error("failed to add new friend request", logUserNickname, logger.Err(err))
-		return errs.NewAppError(op, err)
+		return uuid.UUID{}, errs.NewAppError(op, err)
 	}
 
 	log.Info("new friend request added successfully", logUserNickname)
 
-	return nil
+	return friendId, nil
 }
 
 // func (us *userService) GetPersonalData(ctx context.Context, nickname string) ([]byte, error) {

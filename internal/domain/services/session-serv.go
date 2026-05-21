@@ -37,7 +37,7 @@ func (ss *sessionService) NewSession(ctx context.Context, userID uuid.UUID) erro
 	session := &models.Session{
 		UserID:       userID,
 		CreatedTime:  time.Now(),
-		MessagesChan: make(chan models.SessionMessage, 50),
+		EventsChan: make(chan models.Event, 50),
 	}
 	if err := ss.sessionRepo.NewSession(ctx, session); err != nil {
 		log.Error("failed to create new session", userIDLog, logger.Err(err))
