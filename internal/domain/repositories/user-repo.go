@@ -153,7 +153,7 @@ func (s *userRepository) GetPersonalData(ctx context.Context, nickname string) (
 
 func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) error {
 	op := "userRepository.NewFriendRequest"
-	query := "INSERT INTO friends (user_id1, user_id2) SELECT (LEAST($1, id), GREATEST($1, id)) FROM users WHERE nickname = $2"
+	query := "INSERT INTO friends (user_id1, user_id2) SELECT LEAST($1, id), GREATEST($1, id) FROM users WHERE nickname = $2"
 	res, err := s.storage.Pool.Exec(ctx, query, userId, nickname)
 	if err != nil {
 		return errs.NewAppError(op, err)
