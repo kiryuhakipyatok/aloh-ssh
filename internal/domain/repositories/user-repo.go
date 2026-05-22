@@ -141,16 +141,13 @@ func (s *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) 
 	op := "userRepository.GetPersonalData"
 	query := `SELECT u.nickname, u.register_time, 
     		  COALESCE(
-              	json_agg(
-            	CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END
-        		) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'pending'), '[]'
+              	json_agg(friend_u.nickname) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'pending'), '[]'
     		  ) AS friends_reqs,
 			   COALESCE(
-              	json_agg(
-            	CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END
-        		) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'active'), '[]'
+              	json_agg((friend_u.nickname)) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'active'), '[]'
     		  ) AS active_friends
-			   FROM users u LEFT JOIN friends f ON (u.id = f.user_id1 OR u.id = f.user_id2) 
+			   FROM users u LEFT JOIN friends f ON (u.id = f.user_id1 OR u.id = f.user_id2)
+			   LEFT JOIN users friend_u ON friend_u.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
       		   WHERE u.id = $1 GROUP BY u.id, u.nickname, u.register_time`
 	pd := models.PersonalData{}
 	if err := s.storage.Pool.QueryRow(ctx, query, userId).Scan(
