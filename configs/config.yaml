@@ -13,7 +13,7 @@ storage:
   user: "${POSTGRES_USER}"
   password: "${POSTGRES_PASSWORD}"
   database: "${POSTGRES_DB}"
-  timezone: "Europe/Minsk"
+  timezone: "${TZ}"
   host: "postgres"
   port: "5432"
   sslMode: "${POSTGRES_SSL_MODE}"
