@@ -144,7 +144,7 @@ func (s *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) 
     		  COALESCE(
               	json_agg(json_build_object(
                 			'nickname', friend_u.nickname, 
-                			'reqTime',  f.req_time AT TIME ZONE 'UTC'
+                			'reqTime',  f.req_time
             			)) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'pending'), '[]'
     		  ) AS friends_reqs,
 			   COALESCE(
