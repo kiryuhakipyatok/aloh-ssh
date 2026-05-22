@@ -63,7 +63,7 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 		ID: id,
 		PersonalData: models.PersonalData{
 			Nickname:     nickname,
-			RegisterTime: time.Now().Format("15:04:05"),
+			RegisterTime: time.Now(),
 		},
 		Key:         keyString,
 		Fingerprint: fingerprint,
