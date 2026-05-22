@@ -1,8 +1,6 @@
 package models
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 )
 
@@ -15,8 +13,13 @@ type User struct {
 }
 
 type PersonalData struct {
-	Nickname     string    `json:"nickname"`
-	RegisterTime time.Time `json:"registerTime"`
-	FriendsReqs  []string  `json:"friendsReqs"`
-	Friends      []string  `json:"friends"`
+	Nickname     string      `json:"nickname"`
+	RegisterTime string      `json:"registerTime"`
+	FriendsReqs  []FriendReq `json:"friendsReqs"`
+	Friends      []string    `json:"friends"`
+}
+
+type FriendReq struct {
+	Nickname string `json:"nickname"`
+	ReqTime  string `json:"reqTime"`
 }

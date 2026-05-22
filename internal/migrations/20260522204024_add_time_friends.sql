@@ -1,0 +1,8 @@
+-- +goose Up
+ALTER TABLE IF EXISTS friends
+ADD COLUMN req_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+
+-- +goose Down
+ALTER TABLE IF EXISTS friends
+DROP COLUMN req_time;

@@ -63,7 +63,7 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 		ID: id,
 		PersonalData: models.PersonalData{
 			Nickname:     nickname,
-			RegisterTime: time.Now(),
+			RegisterTime: time.Now().Format("15:04:05"),
 		},
 		Key:         keyString,
 		Fingerprint: fingerprint,
@@ -197,8 +197,8 @@ func (us *userService) NewFriend(ctx context.Context, userID uuid.UUID, nickname
 	log := us.logger.AddOp(op)
 	logUserNickname := logger.Attr("nickname", nickname)
 	log.Info("additing new friend request", logUserNickname)
-
-	friendId, err := us.userRepository.NewFriendRequest(ctx, userID, nickname)
+	t := time.Now()
+	friendId, err := us.userRepository.NewFriendRequest(ctx, userID, nickname, t)
 	if err != nil {
 		log.Error("failed to add new friend request", logUserNickname, logger.Err(err))
 		return uuid.UUID{}, errs.NewAppError(op, err)

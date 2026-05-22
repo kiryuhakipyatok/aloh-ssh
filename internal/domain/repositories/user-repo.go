@@ -6,6 +6,7 @@ import (
 	"aloh-ssh/pkg/storage"
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -18,7 +19,7 @@ type UserRepository interface {
 	SetPassword(ctx context.Context, nickname string, password []byte) error
 	NewKeys(ctx context.Context, nickname string, key, fingerprint string) error
 	GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error)
-	NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error)
+	NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string, timeReq time.Time) (uuid.UUID, error)
 	GetPersonalData(ctx context.Context, userId uuid.UUID) (*models.PersonalData, error)
 	AcceptFriendship(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error)
 	DenyFriendship(ctx context.Context, userId uuid.UUID, nickname string) error
@@ -141,10 +142,13 @@ func (s *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) 
 	op := "userRepository.GetPersonalData"
 	query := `SELECT u.nickname, u.register_time, 
     		  COALESCE(
-              	json_agg(friend_u.nickname) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'pending'), '[]'
+              	json_agg(json_build_object(
+                			'nickname', friend_u.nickname, 
+                			'reqTime',  f.req_time
+            			)) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'pending'), '[]'
     		  ) AS friends_reqs,
 			   COALESCE(
-              	json_agg((friend_u.nickname)) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'active'), '[]'
+              	json_agg(friend_u.nickname) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'active'), '[]'
     		  ) AS active_friends
 			   FROM users u LEFT JOIN friends f ON (u.id = f.user_id1 OR u.id = f.user_id2)
 			   LEFT JOIN users friend_u ON friend_u.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
@@ -164,18 +168,18 @@ func (s *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) 
 	return &pd, nil
 }
 
-func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error) {
+func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string, reqTime time.Time) (uuid.UUID, error) {
 	op := "userRepository.NewFriendRequest"
 	query := `WITH found_user AS (
     			SELECT id FROM users WHERE nickname = $2 AND id != $1
 			),
 			inserted_friend AS (
-    			INSERT INTO friends (user_id1, user_id2)
-    			SELECT LEAST($1, id), GREATEST($1, id) FROM found_user
+    			INSERT INTO friends (user_id1, user_id2, req_time)
+    			SELECT LEAST($1, id), GREATEST($1, id), $3 FROM found_user
 			)
 			SELECT id FROM found_user;`
 	var id uuid.UUID
-	err := s.storage.Pool.QueryRow(ctx, query, userId, nickname).Scan(&id)
+	err := s.storage.Pool.QueryRow(ctx, query, userId, nickname, reqTime).Scan(&id)
 	if err != nil {
 		if storage.ErrorAlreadyExists(err) {
 			return uuid.UUID{}, errs.ErrAlreadyExists(op, err)
