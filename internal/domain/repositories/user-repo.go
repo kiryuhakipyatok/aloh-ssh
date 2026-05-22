@@ -6,7 +6,6 @@ import (
 	"aloh-ssh/pkg/storage"
 	"context"
 	"errors"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -17,10 +16,12 @@ type UserRepository interface {
 	GetUser(ctx context.Context, nickname string) (*models.User, error)
 	//ExistenceCheck(ctx context.Context, nickname, key string) (bool, error)
 	SetPassword(ctx context.Context, nickname string, password []byte) error
-	NewKeys(ctx context.Context, nickname string, key, fingerprint string) (string, error)
+	NewKeys(ctx context.Context, nickname string, key, fingerprint string) error
 	GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error)
 	NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error)
-	//GetPersonalData(ctx context.Context, nickname string) (*models.PersonalData, error)
+	GetPersonalData(ctx context.Context, userId uuid.UUID) (*models.PersonalData, error)
+	AcceptFriendship(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error)
+	DenyFriendship(ctx context.Context, userId uuid.UUID, nickname string) error
 }
 
 type userRepository struct {
@@ -107,19 +108,17 @@ func (s *userRepository) SetPassword(ctx context.Context, nickname string, passw
 	return nil
 }
 
-func (s *userRepository) NewKeys(ctx context.Context, nickname string, key, fingerprint string) (string, error) {
+func (s *userRepository) NewKeys(ctx context.Context, nickname string, key, fingerprint string) error {
 	op := "userRepository.NewKeys"
-	query := "UPDATE users SET key=$1, fingerprint=$2 WHERE nickname=$3 RETURNING register_time"
-	var regTime time.Time
-	if err := s.storage.Pool.QueryRow(ctx, query, key, fingerprint, nickname).Scan(&regTime); err != nil {
-		if errors.Is(err, storage.ErrNotFound()) {
-			return "", errs.ErrNotFound(op)
-		}
-		return "", errs.NewAppError(op, err)
+	query := "UPDATE users SET key=$1, fingerprint=$2 WHERE nickname=$3"
+	res, err := s.storage.Pool.Exec(ctx, query, key, fingerprint, nickname)
+	if err != nil {
+		return errs.NewAppError(op, err)
 	}
-
-	regTimeString := regTime.Format("2006-01-02")
-	return regTimeString, nil
+	if res.RowsAffected() == 0 {
+		return errs.ErrNotFound(op)
+	}
+	return nil
 }
 
 func (s *userRepository) GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error) {
@@ -138,17 +137,34 @@ func (s *userRepository) GetPassword(ctx context.Context, nickname string) ([]by
 	return res.pswrd, res.id, nil
 }
 
-func (s *userRepository) GetPersonalData(ctx context.Context, nickname string) (*models.PersonalData, error) {
+func (s *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) (*models.PersonalData, error) {
 	op := "userRepository.GetPersonalData"
-	query := "SELECT nickname, register_time FROM users WHERE nickname = $1"
-	pd := &models.PersonalData{}
-	if err := s.storage.Pool.QueryRow(ctx, query, nickname).Scan(&pd.Nickname, &pd.RegisterTime); err != nil {
+	query := `SELECT u.nickname, u.register_time, 
+    		  COALESCE(
+              	json_agg(
+            	CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END
+        		) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'pending'), '[]'
+    		  ) AS friends_reqs,
+			   COALESCE(
+              	json_agg(
+            	CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END
+        		) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'active'), '[]'
+    		  ) AS active_friends
+			   FROM users u LEFT JOIN friends f ON (u.id = f.user_id1 OR u.id = f.user_id2) 
+      		   WHERE u.id = $1 GROUP BY u.id, u.nickname, u.register_time`
+	pd := models.PersonalData{}
+	if err := s.storage.Pool.QueryRow(ctx, query, userId).Scan(
+		&pd.Nickname,
+		&pd.RegisterTime,
+		&pd.FriendsReqs,
+		&pd.Friends,
+	); err != nil {
 		if errors.Is(err, storage.ErrNotFound()) {
 			return nil, errs.ErrNotFound(op)
 		}
 		return nil, errs.NewAppError(op, err)
 	}
-	return pd, nil
+	return &pd, nil
 }
 
 func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error) {
@@ -173,4 +189,40 @@ func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID,
 	}
 
 	return id, nil
+}
+
+func (s *userRepository) AcceptFriendship(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error) {
+	op := "userRepository.AcceptFriendship"
+	query := `UPDATE friends f SET status = 'active' FROM users u
+			  WHERE u.nickname = $2 AND u.id != $1 AND (
+      		  (f.user_id1 = $1 AND f.user_id2 = u.id) OR 
+      		  (f.user_id1 = u.id AND f.user_id2 = $1)) RETURNING u.id;`
+	var id uuid.UUID
+	err := s.storage.Pool.QueryRow(ctx, query, userId, nickname).Scan(&id)
+	if err != nil {
+		if storage.ErrorAlreadyExists(err) {
+			return uuid.UUID{}, errs.ErrAlreadyExists(op, err)
+		} else if errors.Is(err, storage.ErrNotFound()) {
+			return uuid.UUID{}, errs.ErrNotFound(op)
+		}
+		return uuid.UUID{}, errs.NewAppError(op, err)
+	}
+
+	return id, nil
+}
+
+func (s *userRepository) DenyFriendship(ctx context.Context, userId uuid.UUID, nickname string) error {
+	op := "userRepository.DenyFriendship"
+	query := `DELETE FROM friends f USING users u
+			  WHERE u.nickname = $2 AND u.id != $1 AND (
+      		  (f.user_id1 = $1 AND f.user_id2 = u.id) OR 
+      		  (f.user_id1 = u.id AND f.user_id2 = $1));`
+	res, err := s.storage.Pool.Exec(ctx, query, userId, nickname)
+	if err != nil {
+		return errs.NewAppError(op, err)
+	}
+	if res.RowsAffected() == 0 {
+		return errs.ErrNotFound(op)
+	}
+	return nil
 }

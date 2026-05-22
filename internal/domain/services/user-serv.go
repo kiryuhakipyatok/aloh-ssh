@@ -7,6 +7,7 @@ import (
 	"aloh-ssh/pkg/errs"
 	"aloh-ssh/pkg/logger"
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -21,10 +22,12 @@ type UserService interface {
 	GetUser(ctx context.Context, nickname string) (*models.User, error)
 	AddPassword(ctx context.Context, nickname string, password []byte) error
 	DeleteUser(ctx context.Context, nickname string) error
-	SetNewKey(ctx context.Context, nickname string, key []byte) (string, error)
+	SetNewKey(ctx context.Context, nickname string, key []byte) error
 	NewFriend(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error)
+	AcceptFriendship(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error)
+	DenyFriendship(ctx context.Context, userID uuid.UUID, nickname string) error
 	CheckPassword(ctx context.Context, nickname string, password []byte) (uuid.UUID, error)
-	//GetPersonalData(ctx context.Context, nickname string) ([]byte, error)
+	GetPersonalData(ctx context.Context, userID uuid.UUID) ([]byte, error)
 }
 
 type userService struct {
@@ -150,7 +153,7 @@ func (us *userService) DeleteUser(ctx context.Context, nickname string) error {
 	return nil
 }
 
-func (us *userService) SetNewKey(ctx context.Context, nickname string, key []byte) (string, error) {
+func (us *userService) SetNewKey(ctx context.Context, nickname string, key []byte) error {
 	op := "userService.SetNewKey"
 	log := us.logger.AddOp(op)
 	logUserNickname := logger.Attr("nickname", nickname)
@@ -160,16 +163,16 @@ func (us *userService) SetNewKey(ctx context.Context, nickname string, key []byt
 	fingerprint, err := utils.GenerateFingerprint([]byte(key))
 	if err != nil {
 		log.Error("failed to generatge fingerprint", logger.Err(err), logUserNickname)
+		return errs.NewAppError(op, err)
 	}
-	regTime, err := us.userRepository.NewKeys(ctx, nickname, keyString, fingerprint)
-	if err != nil {
+	if err := us.userRepository.NewKeys(ctx, nickname, keyString, fingerprint); err != nil {
 		log.Error("failed to set new key to user", logger.Err(err), logUserNickname)
-		return "", errs.NewAppError(op, err)
+		return errs.NewAppError(op, err)
 	}
 
 	log.Info("new key setted successfylly", logUserNickname)
 
-	return regTime, nil
+	return nil
 }
 
 func (us *userService) CheckPassword(ctx context.Context, nickname string, password []byte) (uuid.UUID, error) {
@@ -206,26 +209,58 @@ func (us *userService) NewFriend(ctx context.Context, userID uuid.UUID, nickname
 	return friendId, nil
 }
 
-// func (us *userService) GetPersonalData(ctx context.Context, nickname string) ([]byte, error) {
-// 	op := "userService.GetPersonalData"
+func (us *userService) AcceptFriendship(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error) {
+	op := "userService.AcceptFriendship"
+	log := us.logger.AddOp(op)
+	logUserNickname := logger.Attr("nickname", nickname)
+	log.Info("accpeting friendship", logUserNickname)
 
-// 	log := us.logger.AddOp(op)
-// 	logUserNickname := logger.Attr("nickname", nickname)
-// 	log.Info("getting user's personal data", logUserNickname)
+	id, err := us.userRepository.AcceptFriendship(ctx, userID, nickname)
+	if err != nil {
+		log.Error("failed to accpet friendship", logUserNickname, logger.Err(err))
+		return uuid.UUID{}, errs.NewAppError(op, err)
+	}
 
-// 	personalData, err := us.userRepository.GetPersonalData(ctx, nickname)
-// 	if err != nil {
-// 		log.Error("failed to get user's personal data", logUserNickname, logger.Err(err))
-// 		return nil, errs.NewAppError(op, err)
-// 	}
+	log.Info("friendship accepted successfully", logUserNickname)
 
-// 	personalDataBytes, err := json.Marshal(personalData)
-// 	if err != nil {
-// 		log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
-// 		return nil, errs.NewAppError(op, err)
-// 	}
+	return id, nil
+}
+func (us *userService) DenyFriendship(ctx context.Context, userID uuid.UUID, nickname string) error {
+	op := "userService.DenyFriendship"
+	log := us.logger.AddOp(op)
+	logUserNickname := logger.Attr("nickname", nickname)
+	log.Info("denying friendship", logUserNickname)
 
-// 	log.Info("user's personal data got successfully", logUserNickname)
+	if err := us.userRepository.DenyFriendship(ctx, userID, nickname); err != nil {
+		log.Error("failed to deny friendship", logUserNickname, logger.Err(err))
+		return errs.NewAppError(op, err)
+	}
 
-// 	return personalDataBytes, nil
-// }
+	log.Info("friendship denyed successfully", logUserNickname)
+
+	return nil
+}
+
+func (us *userService) GetPersonalData(ctx context.Context, userID uuid.UUID) ([]byte, error) {
+	op := "userService.GetPersonalData"
+
+	log := us.logger.AddOp(op)
+	logUserNickname := logger.Attr("nickname", userID)
+	log.Info("getting user's personal data", logUserNickname)
+
+	personalData, err := us.userRepository.GetPersonalData(ctx, userID)
+	if err != nil {
+		log.Error("failed to get user's personal data", logUserNickname, logger.Err(err))
+		return nil, errs.NewAppError(op, err)
+	}
+
+	personalDataBytes, err := json.Marshal(personalData)
+	if err != nil {
+		log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
+		return nil, errs.NewAppError(op, err)
+	}
+
+	log.Info("user's personal data got successfully", logUserNickname)
+
+	return personalDataBytes, nil
+}

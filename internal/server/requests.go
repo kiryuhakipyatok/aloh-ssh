@@ -44,13 +44,12 @@ func (s *Server) setNewKeyRequest(timeout time.Duration) ssh.RequestHandler {
 		log.Info("new login request", logUserNickname)
 		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		regTime, err := s.userService.SetNewKey(appCtx, nickname, req.Payload)
-		if err != nil {
+		if err := s.userService.SetNewKey(appCtx, nickname, req.Payload); err != nil {
 			log.Error("failed to set user's new keys", logger.Err(err), logUserNickname)
 			return false, castErr(err)
 		}
 		log.Info("user's key updated successfully", logUserNickname)
-		return true, []byte(regTime)
+		return true, nil
 	}
 }
 
@@ -86,6 +85,90 @@ func (s *Server) newFriendRequest(timeout time.Duration) ssh.RequestHandler {
 		}
 		log.Info("new friend request added successfully", logUserNickname)
 		return true, nil
+	}
+}
+
+func (s *Server) acceptFriendshipRequest(timeout time.Duration) ssh.RequestHandler {
+	op := "server.acceptFriendshipRequest"
+	log := s.log.AddOp(op)
+	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+		nickname := ctx.User()
+		logUserNickname := logger.Attr("nickname", nickname)
+		log.Info("new accept friendship request", logUserNickname)
+		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		userID, ok := ctx.Value("userID").(uuid.UUID)
+		if !ok {
+			log.Error("failed to get user id", logUserNickname)
+			return false, castErr(errs.ErrInvalidType(op))
+		}
+		friendNickname := string(req.Payload)
+		friendId, err := s.userService.AcceptFriendship(appCtx, userID, friendNickname)
+		if err != nil {
+			log.Error("failed to accept friendship", logger.Err(err))
+			return false, castErr(err)
+		}
+		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
+		if err != nil {
+			log.Error("failed to get friend's session", logger.Err(err))
+			return false, castErr(err)
+		}
+		newFriendEvent := models.AcceptFriendEvent(nickname)
+		select {
+		case friendSession.EventsChan <- newFriendEvent:
+		default:
+		}
+		log.Info("accept friendship request added successfully", logUserNickname)
+		return true, nil
+	}
+}
+
+func (s *Server) denyFriendshipRequest(timeout time.Duration) ssh.RequestHandler {
+	op := "server.denyFriendshipRequest"
+	log := s.log.AddOp(op)
+	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+		nickname := ctx.User()
+		logUserNickname := logger.Attr("nickname", nickname)
+		log.Info("new deny friendship request", logUserNickname)
+		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		userID, ok := ctx.Value("userID").(uuid.UUID)
+		if !ok {
+			log.Error("failed to get user id", logUserNickname)
+			return false, castErr(errs.ErrInvalidType(op))
+		}
+		friendNickname := string(req.Payload)
+		if err := s.userService.DenyFriendship(appCtx, userID, friendNickname); err != nil {
+			log.Error("failed to deny friendship", logger.Err(err))
+			return false, castErr(err)
+		}
+
+		log.Info("deny friendship request added successfully", logUserNickname)
+		return true, nil
+	}
+}
+
+func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler {
+	op := "server.fetchPersonalRequest"
+	log := s.log.AddOp(op)
+	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+		nickname := ctx.User()
+		logUserNickname := logger.Attr("nickname", nickname)
+		log.Info("new fetch personal data request", logUserNickname)
+		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		userID, ok := ctx.Value("userID").(uuid.UUID)
+		if !ok {
+			log.Error("failed to get user id", logUserNickname)
+			return false, castErr(errs.ErrInvalidType(op))
+		}
+		data, err := s.userService.GetPersonalData(appCtx, userID)
+		if err != nil {
+			log.Error("failed to fetch personal data", logger.Err(err), logUserNickname)
+			return false, castErr(err)
+		}
+		log.Info("user's key updated successfully", logUserNickname)
+		return true, data
 	}
 }
 

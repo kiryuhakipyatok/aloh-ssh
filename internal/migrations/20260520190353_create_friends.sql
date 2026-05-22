@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TYPE friendship_status AS ENUM ('pending', 'accepted', 'blocked');
+CREATE TYPE friendship_status AS ENUM ('pending', 'active');
 CREATE TABLE IF NOT EXISTS friends(
     user_id1 UUID NOT NULL,
     user_id2 UUID NOT NULL,

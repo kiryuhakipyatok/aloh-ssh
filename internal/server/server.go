@@ -34,13 +34,14 @@ func NewServer(cfg config.Server, ss services.SessionService, us services.UserSe
 	}
 	server := &ssh.Server{
 		Addr: addr,
-		//Handler:          s.sessionHandler,
 		PublicKeyHandler: s.publicKeyHandler(cfg.Timeout),
 		RequestHandlers: map[string]ssh.RequestHandler{
-			"pswrd":      s.passwordRequest(cfg.Timeout),
-			"key":        s.setNewKeyRequest(cfg.Timeout),
-			"new-friend": s.newFriendRequest(cfg.Timeout),
-			// personal-data": s.fetchPersonalRequest(cfg.Timeout),
+			"pswrd":         s.passwordRequest(cfg.Timeout),
+			"key":           s.setNewKeyRequest(cfg.Timeout),
+			"new-friend":    s.newFriendRequest(cfg.Timeout),
+			"accept-friend": s.acceptFriendshipRequest(cfg.Timeout),
+			"deny-friend":   s.denyFriendshipRequest(cfg.Timeout),
+			"personal-data": s.fetchPersonalRequest(cfg.Timeout),
 		},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
 			"event-channel": s.proccessEventChannel,
@@ -119,46 +120,6 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 
 	}
 }
-
-// func (s *Server) sessionHandler(session ssh.Session) {
-// 	go func() {
-// 		nicknameLog := logger.Attr("user", session.User())
-
-// 		s.log.Info("session closed", nicknameLog)
-// 		userId, ok := session.Context().Value("userID").(uuid.UUID)
-// 		if !ok {
-// 			s.log.Error("failed to get user id", nicknameLog)
-// 			return
-// 		}
-// 		defer func() {
-// 			if err := s.sessionService.DeleteSession(context.Background(), userId); err != nil {
-// 				s.log.Error("failed to delete session", logger.Err(err), nicknameLog)
-// 			}
-// 			s.log.Info("session deleted successfully", nicknameLog)
-// 		}()
-// 		<-session.Context().Done()
-// 	}()
-
-// }
-
-// func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler {
-// 	op := "server.fetchPersonalRequest"
-// 	log := s.log.AddOp(op)
-// 	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
-// 		nickname := ctx.User()
-// 		logUserNickname := logger.Attr("nickname", nickname)
-// 		log.Info("new fetch personal data request", logUserNickname)
-// 		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
-// 		defer cancel()
-// 		data, err := s.userService.GetPersonalData(appCtx, nickname)
-// 		if err != nil {
-// 			log.Error("failed to fetch personal data", logger.Err(err), logUserNickname)
-// 			return false, castErr(err)
-// 		}
-// 		log.Info("user's key updated successfully", logUserNickname)
-// 		return true, data
-// 	}
-// }
 
 func (s *Server) MustStart() {
 	err := s.serv.ListenAndServe()
