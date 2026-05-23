@@ -178,8 +178,9 @@ func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID,
 				SELECT $1, id, $3 FROM found_user
 				ON CONFLICT (LEAST(user_id1, user_id2), GREATEST(user_id1, user_id2)) 
     			DO UPDATE SET status = 'active' WHERE friends.user_id2 = $1
+				RETURNING user_id2
 			)
-			SELECT id FROM found_user`
+			SELECT user_id2 FROM inserted_friend`
 	var id uuid.UUID
 	err := s.storage.Pool.QueryRow(ctx, query, userId, nickname, reqTime).Scan(&id)
 	if err != nil {
