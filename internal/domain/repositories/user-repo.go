@@ -175,6 +175,8 @@ func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID,
 			),
 			inserted_friend AS (
     			INSERT INTO friends (user_id1, user_id2, req_time)
+				ON CONFLICT (LEAST(user_id1, user_id2), GREATEST(user_id1, user_id2)) 
+    			DO UPDATE SET status = 'active'
     			SELECT $1, id, $3 FROM found_user
 			)
 			SELECT id FROM found_user`

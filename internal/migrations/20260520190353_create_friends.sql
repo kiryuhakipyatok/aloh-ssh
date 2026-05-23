@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS friends(
     PRIMARY KEY (user_id1,user_id2),
     FOREIGN KEY (user_id1) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id2) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT not_self CHECK (user_id1 < user_id2)
+    CONSTRAINT not_self CHECK (user_id1 <> user_id2)
 );
 
 -- +goose Down
