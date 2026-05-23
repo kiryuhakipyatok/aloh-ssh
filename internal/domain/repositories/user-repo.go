@@ -145,10 +145,10 @@ func (s *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) 
               	json_agg(json_build_object(
                 			'nickname', friend_u.nickname, 
                 			'reqTime',  f.req_time
-            			)) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'pending'), '[]'
+            			)) FILTER (WHERE f.user_id1 IS NOT NULL AND f.user_id2 = $1 AND f.status = 'pending'), '[]'
     		  ) AS friends_reqs,
 			   COALESCE(
-              	json_agg(friend_u.nickname) FILTER (WHERE f.user_id1 IS NOT NULL AND f.status = 'active'), '[]'
+              	json_agg(friend_u.nickname) FILTER (WHERE f.user_id1 IS NOT NULL AND f.user_id2 IS NOT NULL AND f.status = 'active'), '[]'
     		  ) AS active_friends
 			   FROM users u LEFT JOIN friends f ON (u.id = f.user_id1 OR u.id = f.user_id2)
 			   LEFT JOIN users friend_u ON friend_u.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
