@@ -168,6 +168,9 @@ func (s *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) 
 	return &pd, nil
 }
 
+// ON CONFLICT (LEAST(user_id1, user_id2), GREATEST(user_id1, user_id2)) 
+//     			DO UPDATE SET status = 'active' WHERE friends.user_id2 = $1 AND friends.status = 'pending'
+
 func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string, reqTime time.Time) (uuid.UUID, error) {
 	op := "userRepository.NewFriendRequest"
 	query := `WITH found_user AS (
@@ -176,8 +179,6 @@ func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID,
 			inserted_friend AS (
     			INSERT INTO friends (user_id1, user_id2, req_time)
 				SELECT $1, id, $3 FROM found_user
-				ON CONFLICT (LEAST(user_id1, user_id2), GREATEST(user_id1, user_id2)) 
-    			DO UPDATE SET status = 'active' WHERE friends.user_id2 = $1 AND friends.status = 'pending'
 				RETURNING user_id2
 			)
 			SELECT user_id2 FROM inserted_friend`

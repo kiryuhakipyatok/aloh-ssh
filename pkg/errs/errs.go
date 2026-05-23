@@ -6,10 +6,10 @@ import (
 )
 
 var (
-	ErrNotFoundBase       = errors.New("not found")
-	ErrAlreadyExistsBase  = errors.New("already exists")
-	ErrRequestTimeoutBase = errors.New("request timeout")
-	ErrInvalidTypeBase    = errors.New("invalid type")
+	ErrNotFoundBase            = errors.New("not found")
+	ErrAlreadyExistsBase       = errors.New("already exists")
+	ErrRequestTimeoutBase      = errors.New("request timeout")
+	ErrInvalidTypeBase         = errors.New("invalid type")
 )
 
 type AppError struct {
