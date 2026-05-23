@@ -175,9 +175,9 @@ func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID,
 			),
 			inserted_friend AS (
     			INSERT INTO friends (user_id1, user_id2, req_time)
-    			SELECT LEAST($1, id), GREATEST($1, id), $3 FROM found_user
+    			SELECT $1, id, $3 FROM found_user
 			)
-			SELECT id FROM found_user;`
+			SELECT id FROM found_user`
 	var id uuid.UUID
 	err := s.storage.Pool.QueryRow(ctx, query, userId, nickname, reqTime).Scan(&id)
 	if err != nil {
@@ -195,9 +195,8 @@ func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID,
 func (s *userRepository) AcceptFriendship(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error) {
 	op := "userRepository.AcceptFriendship"
 	query := `UPDATE friends f SET status = 'active' FROM users u
-			  WHERE u.nickname = $2 AND u.id != $1 AND (
-      		  (f.user_id1 = $1 AND f.user_id2 = u.id) OR 
-      		  (f.user_id1 = u.id AND f.user_id2 = $1)) RETURNING u.id;`
+			  WHERE u.nickname = $2 AND u.id != $1 AND
+      		  f.user_id1 = u.id AND f.user_id2 = $1 RETURNING u.id`
 	var id uuid.UUID
 	err := s.storage.Pool.QueryRow(ctx, query, userId, nickname).Scan(&id)
 	if err != nil {
@@ -215,9 +214,8 @@ func (s *userRepository) AcceptFriendship(ctx context.Context, userId uuid.UUID,
 func (s *userRepository) DenyFriendship(ctx context.Context, userId uuid.UUID, nickname string) error {
 	op := "userRepository.DenyFriendship"
 	query := `DELETE FROM friends f USING users u
-			  WHERE u.nickname = $2 AND u.id != $1 AND (
-      		  (f.user_id1 = $1 AND f.user_id2 = u.id) OR 
-      		  (f.user_id1 = u.id AND f.user_id2 = $1));`
+			  WHERE u.nickname = $2 AND u.id != $1 AND
+      		  f.user_id1 = u.id AND f.user_id2 = $1`
 	res, err := s.storage.Pool.Exec(ctx, query, userId, nickname)
 	if err != nil {
 		return errs.NewAppError(op, err)
