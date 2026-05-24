@@ -4,6 +4,7 @@ const (
 	NEW_FRIEND = iota
 	ACCEPT_FRIEND
 	DENY_FRIEND
+	DELETE_FRIEND
 )
 
 type Event struct {
@@ -28,6 +29,13 @@ func AcceptFriendEvent(nickname string) Event {
 func DenyFriendEvent(nickname string) Event {
 	return Event{
 		Type: DENY_FRIEND,
+		Data: nickname,
+	}
+}
+
+func DeleteFriendEvent(nickname string) Event {
+	return Event{
+		Type: DELETE_FRIEND,
 		Data: nickname,
 	}
 }

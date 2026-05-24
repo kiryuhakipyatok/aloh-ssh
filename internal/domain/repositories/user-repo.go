@@ -23,6 +23,7 @@ type UserRepository interface {
 	GetPersonalData(ctx context.Context, userId uuid.UUID) (*models.PersonalData, error)
 	AcceptFriendship(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error)
 	DenyFriendship(ctx context.Context, userId uuid.UUID, nickname string) error
+	DeleteFromFriends(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error)
 }
 
 type userRepository struct {
@@ -168,7 +169,7 @@ func (s *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) 
 	return &pd, nil
 }
 
-// ON CONFLICT (LEAST(user_id1, user_id2), GREATEST(user_id1, user_id2)) 
+// ON CONFLICT (LEAST(user_id1, user_id2), GREATEST(user_id1, user_id2))
 //     			DO UPDATE SET status = 'active' WHERE friends.user_id2 = $1 AND friends.status = 'pending'
 
 func (s *userRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, nickname string, reqTime time.Time) (uuid.UUID, error) {
@@ -228,4 +229,24 @@ func (s *userRepository) DenyFriendship(ctx context.Context, userId uuid.UUID, n
 		return errs.ErrNotFound(op)
 	}
 	return nil
+}
+
+func (s *userRepository) DeleteFromFriends(ctx context.Context, userId uuid.UUID, nickname string) (uuid.UUID, error) {
+	op := "userRepository.DeleteFromFriends"
+	query := `DELETE FROM friends f USING users u
+			  WHERE u.nickname = $2 AND u.id != $1 AND
+      		  (f.user_id1 = u.id AND f.user_id2 = $1) OR (f.user_id1 = $1 AND f.user_id2 = u.id) AND f.status = 'active
+			  RETURNING u.id'`
+	var id uuid.UUID
+	err := s.storage.Pool.QueryRow(ctx, query, userId, nickname).Scan(&id)
+	if err != nil {
+		if storage.ErrorAlreadyExists(err) {
+			return uuid.UUID{}, errs.ErrAlreadyExists(op, err)
+		} else if errors.Is(err, storage.ErrNotFound()) {
+			return uuid.UUID{}, errs.ErrNotFound(op)
+		}
+		return uuid.UUID{}, errs.NewAppError(op, err)
+	}
+
+	return id, nil
 }
