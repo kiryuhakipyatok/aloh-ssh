@@ -33,15 +33,16 @@ func NewServer(cfg config.Server, ss services.SessionService, us services.UserSe
 		log:            l,
 	}
 	server := &ssh.Server{
-		Addr: addr,
+		Addr:             addr,
 		PublicKeyHandler: s.publicKeyHandler(cfg.Timeout),
 		RequestHandlers: map[string]ssh.RequestHandler{
-			"pswrd":         s.passwordRequest(cfg.Timeout),
-			"key":           s.setNewKeyRequest(cfg.Timeout),
-			"new-friend":    s.newFriendRequest(cfg.Timeout),
-			"accept-friend": s.acceptFriendshipRequest(cfg.Timeout),
-			"deny-friend":   s.denyFriendshipRequest(cfg.Timeout),
-			"personal-data": s.fetchPersonalRequest(cfg.Timeout),
+			"pswrd":          s.passwordRequest(cfg.Timeout),
+			"key":            s.setNewKeyRequest(cfg.Timeout),
+			"new-friend":     s.newFriendRequest(cfg.Timeout),
+			"accept-friend":  s.acceptFriendshipRequest(cfg.Timeout),
+			"deny-friend":    s.denyFriendshipRequest(cfg.Timeout),
+			"personal-data":  s.fetchPersonalRequest(cfg.Timeout),
+			"delete-friend": s.deleteFromFriendsRequest(cfg.Timeout),
 		},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
 			"event-channel": s.proccessEventChannel,
