@@ -23,10 +23,6 @@ type UserService interface {
 	AddPassword(ctx context.Context, nickname string, password []byte) error
 	DeleteUser(ctx context.Context, nickname string) error
 	SetNewKey(ctx context.Context, nickname string, key []byte) error
-	NewFriend(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error)
-	AcceptFriendship(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error)
-	DenyFriendship(ctx context.Context, userID uuid.UUID, nickname string) error
-	DeleteFromFriends(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error)
 	CheckPassword(ctx context.Context, nickname string, password []byte) (uuid.UUID, error)
 	GetPersonalData(ctx context.Context, userID uuid.UUID) ([]byte, error)
 }
@@ -190,72 +186,6 @@ func (us *userService) CheckPassword(ctx context.Context, nickname string, passw
 		log.Error("passwords are not equal", logger.Err(err), logUserNickname)
 		return uuid.UUID{}, errs.NewAppError(op, err)
 	}
-	return id, nil
-}
-
-func (us *userService) NewFriend(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error) {
-	op := "userService.NewFriend"
-	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", nickname)
-	log.Info("additing new friend request", logUserNickname)
-	t := time.Now().UTC()
-	friendId, err := us.userRepository.NewFriendRequest(ctx, userID, nickname, t)
-	if err != nil {
-		log.Error("failed to add new friend request", logUserNickname, logger.Err(err))
-		return uuid.UUID{}, errs.NewAppError(op, err)
-	}
-
-	log.Info("new friend request added successfully", logUserNickname)
-
-	return friendId, nil
-}
-
-func (us *userService) AcceptFriendship(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error) {
-	op := "userService.AcceptFriendship"
-	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", nickname)
-	log.Info("accpeting friendship", logUserNickname)
-
-	id, err := us.userRepository.AcceptFriendship(ctx, userID, nickname)
-	if err != nil {
-		log.Error("failed to accpet friendship", logUserNickname, logger.Err(err))
-		return uuid.UUID{}, errs.NewAppError(op, err)
-	}
-
-	log.Info("friendship accepted successfully", logUserNickname)
-
-	return id, nil
-}
-func (us *userService) DenyFriendship(ctx context.Context, userID uuid.UUID, nickname string) error {
-	op := "userService.DenyFriendship"
-	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", nickname)
-	log.Info("denying friendship", logUserNickname)
-
-	if err := us.userRepository.DenyFriendship(ctx, userID, nickname); err != nil {
-		log.Error("failed to deny friendship", logUserNickname, logger.Err(err))
-		return errs.NewAppError(op, err)
-	}
-
-	log.Info("friendship denyed successfully", logUserNickname)
-
-	return nil
-}
-
-func (us *userService) DeleteFromFriends(ctx context.Context, userID uuid.UUID, nickname string) (uuid.UUID, error) {
-	op := "userService.DeleteFromFriends"
-	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", nickname)
-	log.Info("deleting from freinds", logUserNickname)
-
-	id, err := us.userRepository.DeleteFromFriends(ctx, userID, nickname)
-	if  err != nil {
-		log.Error("failed to delete from friends", logUserNickname, logger.Err(err))
-		return uuid.UUID{}, errs.NewAppError(op, err)
-	}
-
-	log.Info("deleted from friends successfully", logUserNickname)
-
 	return id, nil
 }
 

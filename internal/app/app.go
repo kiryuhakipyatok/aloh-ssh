@@ -31,8 +31,18 @@ func Run() {
 	sessionRepo := repositories.NewSessionRepository()
 	log.Info("sessions repository created successfully")
 	sessionService := services.NewSessionService(sessionRepo, log)
-	log.Info("users service created successfully")
-	server := server.NewServer(cfg.Server, sessionService, userService, log)
+	log.Info("sessions service created successfully")
+	friendshipRepo := repositories.NewFriendshipRepository(storage)
+	log.Info("friendship repository created successfully")
+	friendshipService := services.NewFriendshipService(friendshipRepo, log)
+	log.Info("friendship service created successfully")
+	server := server.NewServer(server.NewServerSetup{
+		Cfg:               cfg.Server,
+		SessionService:    sessionService,
+		FriendshipService: friendshipService,
+		UserService:       userService,
+		Log:               log,
+	})
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.Timeout)
 		defer cancel()

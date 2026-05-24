@@ -13,10 +13,12 @@ import (
 )
 
 type Server struct {
-	serv           *ssh.Server
-	userService    services.UserService
-	sessionService services.SessionService
-	log            *logger.Logger
+	serv             *ssh.Server
+	userService      services.UserService
+	sessionService   services.SessionService
+	friendshipSerive services.FriendshipService
+	blockedService   services.BlockedService
+	log              *logger.Logger
 }
 
 const (
@@ -25,29 +27,42 @@ const (
 	DEFAULT  = "SSH-2.0-aloh-default"
 )
 
-func NewServer(cfg config.Server, ss services.SessionService, us services.UserService, l *logger.Logger) *Server {
-	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
+type NewServerSetup struct {
+	Cfg               config.Server
+	SessionService    services.SessionService
+	UserService       services.UserService
+	FriendshipService services.FriendshipService
+	BlockedService    services.BlockedService
+	Log               *logger.Logger
+}
+
+func NewServer(nss NewServerSetup) *Server {
+	addr := fmt.Sprintf("%s:%s", nss.Cfg.Host, nss.Cfg.Port)
 	s := &Server{
-		userService:    us,
-		sessionService: ss,
-		log:            l,
+		userService:      nss.UserService,
+		sessionService:   nss.SessionService,
+		friendshipSerive: nss.FriendshipService,
+		blockedService:   nss.BlockedService,
+		log:              nss.Log,
 	}
 	server := &ssh.Server{
 		Addr:             addr,
-		PublicKeyHandler: s.publicKeyHandler(cfg.Timeout),
+		PublicKeyHandler: s.publicKeyHandler(nss.Cfg.Timeout),
 		RequestHandlers: map[string]ssh.RequestHandler{
-			"pswrd":          s.passwordRequest(cfg.Timeout),
-			"key":            s.setNewKeyRequest(cfg.Timeout),
-			"new-friend":     s.newFriendRequest(cfg.Timeout),
-			"accept-friend":  s.acceptFriendshipRequest(cfg.Timeout),
-			"deny-friend":    s.denyFriendshipRequest(cfg.Timeout),
-			"personal-data":  s.fetchPersonalRequest(cfg.Timeout),
-			"delete-friend": s.deleteFromFriendsRequest(cfg.Timeout),
+			"pswrd":         s.passwordRequest(nss.Cfg.Timeout),
+			"key":           s.setNewKeyRequest(nss.Cfg.Timeout),
+			"new-friend":    s.newFriendRequest(nss.Cfg.Timeout),
+			"accept-friend": s.acceptFriendshipRequest(nss.Cfg.Timeout),
+			"deny-friend":   s.denyFriendshipRequest(nss.Cfg.Timeout),
+			"personal-data": s.fetchPersonalRequest(nss.Cfg.Timeout),
+			"delete-friend": s.deleteFromFriendsRequest(nss.Cfg.Timeout),
+			"block-user":    s.blockUserRequest(nss.Cfg.Timeout),
+			"unblock-user":  s.unblockUserRequest(nss.Cfg.Timeout),
 		},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
 			"event-channel": s.proccessEventChannel,
 		},
-		PasswordHandler: s.passwordHandler(cfg.Timeout),
+		PasswordHandler: s.passwordHandler(nss.Cfg.Timeout),
 	}
 
 	s.serv = server

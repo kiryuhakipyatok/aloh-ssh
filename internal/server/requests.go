@@ -69,7 +69,7 @@ func (s *Server) newFriendRequest(timeout time.Duration) ssh.RequestHandler {
 			return false, castErr(errs.ErrInvalidType(op))
 		}
 		friendNickname := string(req.Payload)
-		friendId, err := s.userService.NewFriend(appCtx, userID, friendNickname)
+		friendId, err := s.friendshipSerive.NewFriend(appCtx, userID, friendNickname)
 		if err != nil {
 			log.Error("failed to add new friend request", logger.Err(err), logUserNickname)
 			return false, castErr(err)
@@ -109,7 +109,7 @@ func (s *Server) acceptFriendshipRequest(timeout time.Duration) ssh.RequestHandl
 			return false, castErr(errs.ErrInvalidType(op))
 		}
 		friendNickname := string(req.Payload)
-		friendId, err := s.userService.AcceptFriendship(appCtx, userID, friendNickname)
+		friendId, err := s.friendshipSerive.AcceptFriendship(appCtx, userID, friendNickname)
 		if err != nil {
 			log.Error("failed to accept friendship", logger.Err(err), logUserNickname)
 			return false, castErr(err)
@@ -150,7 +150,7 @@ func (s *Server) denyFriendshipRequest(timeout time.Duration) ssh.RequestHandler
 			return false, castErr(errs.ErrInvalidType(op))
 		}
 		friendNickname := string(req.Payload)
-		if err := s.userService.DenyFriendship(appCtx, userID, friendNickname); err != nil {
+		if err := s.friendshipSerive.DenyFriendship(appCtx, userID, friendNickname); err != nil {
 			log.Error("failed to deny friendship", logger.Err(err), logUserNickname)
 			return false, castErr(err)
 		}
@@ -175,7 +175,7 @@ func (s *Server) deleteFromFriendsRequest(timeout time.Duration) ssh.RequestHand
 			return false, castErr(errs.ErrInvalidType(op))
 		}
 		friendNickname := string(req.Payload)
-		friendId, err := s.userService.DeleteFromFriends(appCtx, userID, friendNickname)
+		friendId, err := s.friendshipSerive.DeleteFromFriends(appCtx, userID, friendNickname)
 		if err != nil {
 			log.Error("failed to delete from friends", logger.Err(err), logUserNickname)
 			return false, castErr(err)
@@ -222,6 +222,56 @@ func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler 
 		}
 		log.Info("user's key updated successfully", logUserNickname)
 		return true, data
+	}
+}
+
+func (s *Server) blockUserRequest(timeout time.Duration) ssh.RequestHandler {
+	op := "server.blockUserRequest"
+	log := s.log.AddOp(op)
+	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+		nickname := ctx.User()
+		logUserNickname := logger.Attr("nickname", nickname)
+		log.Info("new block user request", logUserNickname)
+		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		userID, ok := ctx.Value("userID").(uuid.UUID)
+		if !ok {
+			log.Error("failed to get user id", logUserNickname)
+			return false, castErr(errs.ErrInvalidType(op))
+		}
+		userNickname := string(req.Payload)
+		if err := s.blockedService.BlockUser(appCtx, userID, userNickname); err != nil {
+			log.Error("failed to block user", logger.Err(err), logUserNickname)
+			return false, castErr(err)
+		}
+
+		log.Info("user blocked successfully", logUserNickname)
+		return true, nil
+	}
+}
+
+func (s *Server) unblockUserRequest(timeout time.Duration) ssh.RequestHandler {
+	op := "server.unblockUserRequest"
+	log := s.log.AddOp(op)
+	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+		nickname := ctx.User()
+		logUserNickname := logger.Attr("nickname", nickname)
+		log.Info("new unblock user request", logUserNickname)
+		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		userID, ok := ctx.Value("userID").(uuid.UUID)
+		if !ok {
+			log.Error("failed to get user id", logUserNickname)
+			return false, castErr(errs.ErrInvalidType(op))
+		}
+		userNickname := string(req.Payload)
+		if err := s.blockedService.UnblockUser(appCtx, userID, userNickname); err != nil {
+			log.Error("failed to unblock user", logger.Err(err), logUserNickname)
+			return false, castErr(err)
+		}
+
+		log.Info("user unblocked successfully", logUserNickname)
+		return true, nil
 	}
 }
 
