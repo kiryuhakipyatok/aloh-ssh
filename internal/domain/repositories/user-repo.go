@@ -235,7 +235,7 @@ func (s *userRepository) DeleteFromFriends(ctx context.Context, userId uuid.UUID
 	op := "userRepository.DeleteFromFriends"
 	query := `DELETE FROM friends f USING users u
 			  WHERE u.nickname = $2 AND u.id != $1 AND
-      		  (f.user_id1 = u.id AND f.user_id2 = $1) OR (f.user_id1 = $1 AND f.user_id2 = u.id) AND f.status = 'active'
+      		  ((f.user_id1 = u.id AND f.user_id2 = $1) OR (f.user_id1 = $1 AND f.user_id2 = u.id)) AND f.status = 'active'
 			  RETURNING u.id`
 	var id uuid.UUID
 	err := s.storage.Pool.QueryRow(ctx, query, userId, nickname).Scan(&id)
