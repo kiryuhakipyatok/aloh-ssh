@@ -6,6 +6,7 @@ import (
 	"aloh-ssh/pkg/logger"
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/charmbracelet/ssh"
@@ -75,13 +76,18 @@ func (s *Server) newFriendRequest(timeout time.Duration) ssh.RequestHandler {
 		}
 		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 		if err != nil {
-			log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-			return false, castErr(err)
-		}
-		newFriendEvent := models.NewFriendEvent(nickname)
-		select {
-		case friendSession.EventsChan <- newFriendEvent:
-		default:
+			if errors.Is(err, errs.ErrNotFoundBase) {
+				log.Info("friend is offline", logUserNickname)
+			} else {
+				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+				return false, castErr(err)
+			}
+		} else {
+			newFriendEvent := models.NewFriendEvent(nickname)
+			select {
+			case friendSession.EventsChan <- newFriendEvent:
+			default:
+			}
 		}
 		log.Info("new friend request added successfully", logUserNickname)
 		return true, nil
@@ -110,14 +116,20 @@ func (s *Server) acceptFriendshipRequest(timeout time.Duration) ssh.RequestHandl
 		}
 		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 		if err != nil {
-			log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-			return false, castErr(err)
+			if errors.Is(err, errs.ErrNotFoundBase) {
+				log.Info("friend is offline", logUserNickname)
+			} else {
+				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+				return false, castErr(err)
+			}
+		} else {
+			newFriendEvent := models.AcceptFriendEvent(nickname)
+			select {
+			case friendSession.EventsChan <- newFriendEvent:
+			default:
+			}
 		}
-		newFriendEvent := models.AcceptFriendEvent(nickname)
-		select {
-		case friendSession.EventsChan <- newFriendEvent:
-		default:
-		}
+
 		log.Info("accept friendship request added successfully", logUserNickname)
 		return true, nil
 	}
@@ -170,13 +182,18 @@ func (s *Server) deleteFromFriendsRequest(timeout time.Duration) ssh.RequestHand
 		}
 		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 		if err != nil {
-			log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-			return false, castErr(err)
-		}
-		deleteFriendEvent := models.DeleteFriendEvent(nickname)
-		select {
-		case friendSession.EventsChan <- deleteFriendEvent:
-		default:
+			if errors.Is(err, errs.ErrNotFoundBase) {
+				log.Info("friend is offline", logUserNickname)
+			} else {
+				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+				return false, castErr(err)
+			}
+		} else {
+			deleteFriendEvent := models.DeleteFriendEvent(nickname)
+			select {
+			case friendSession.EventsChan <- deleteFriendEvent:
+			default:
+			}
 		}
 
 		log.Info("delete from friends request added successfully", logUserNickname)
