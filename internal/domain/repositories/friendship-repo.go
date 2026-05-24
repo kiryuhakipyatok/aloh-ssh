@@ -60,7 +60,7 @@ func (fr *friendshipRepository) AcceptFriendship(ctx context.Context, userId uui
 	query := `UPDATE friends f SET status = 'active' FROM users u
 			  WHERE u.nickname = $2 AND u.id != $1 AND NOT EXISTS (
 					SELECT 1 FROM blocked_users bu WHERE (bu.blocker_id = $1 AND bu.blocked_id = u.id) OR
-					(bu.blocker_id = u.id AND bu.blocked_id = $1) AND
+					(bu.blocker_id = u.id AND bu.blocked_id = $1)) AND
       		  f.user_id1 = u.id AND f.user_id2 = $1 RETURNING u.id`
 	var id uuid.UUID
 	err := fr.storage.Pool.QueryRow(ctx, query, userId, nickname).Scan(&id)
