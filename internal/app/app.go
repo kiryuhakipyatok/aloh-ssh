@@ -36,11 +36,16 @@ func Run() {
 	log.Info("friendship repository created successfully")
 	friendshipService := services.NewFriendshipService(friendshipRepo, log)
 	log.Info("friendship service created successfully")
+	blockedRepo := repositories.NewBlockedRepository(storage)
+	log.Info("blocked repository created successfully")
+	blockedService := services.NewBlockedService(blockedRepo, log)
+	log.Info("blocked service created successfully")
 	server := server.NewServer(server.NewServerSetup{
 		Cfg:               cfg.Server,
 		SessionService:    sessionService,
 		FriendshipService: friendshipService,
 		UserService:       userService,
+		BlockedService:    blockedService,
 		Log:               log,
 	})
 	defer func() {
