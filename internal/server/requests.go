@@ -240,9 +240,28 @@ func (s *Server) blockUserRequest(timeout time.Duration) ssh.RequestHandler {
 			return false, castErr(errs.ErrInvalidType(op))
 		}
 		userNickname := string(req.Payload)
-		if err := s.blockedService.BlockUser(appCtx, userID, userNickname); err != nil {
+		friendId, err := s.blockedService.BlockUser(appCtx, userID, userNickname)
+		if err != nil {
 			log.Error("failed to block user", logger.Err(err), logUserNickname)
 			return false, castErr(err)
+		}
+
+		if friendId.String() != "" {
+			friendSession, err := s.sessionService.GetSession(appCtx, friendId)
+			if err != nil {
+				if errors.Is(err, errs.ErrNotFoundBase) {
+					log.Info("friend is offline", logUserNickname)
+				} else {
+					log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+					return false, castErr(err)
+				}
+			} else {
+				deleteFriendEvent := models.DeleteFriendEvent(nickname)
+				select {
+				case friendSession.EventsChan <- deleteFriendEvent:
+				default:
+				}
+			}
 		}
 
 		log.Info("user blocked successfully", logUserNickname)

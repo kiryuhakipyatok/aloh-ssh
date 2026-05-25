@@ -4,13 +4,14 @@ import (
 	"aloh-ssh/pkg/errs"
 	"aloh-ssh/pkg/storage"
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type BlockedRepository interface {
-	BlockUser(ctx context.Context, userId uuid.UUID, nickname string, blockTime time.Time) error
+	BlockUser(ctx context.Context, userId uuid.UUID, nickname string, blockTime time.Time) (uuid.UUID, error)
 	UnblockUser(ctx context.Context, userId uuid.UUID, nickname string) error
 }
 
@@ -24,7 +25,7 @@ func NewBlockedRepository(s *storage.Storage) BlockedRepository {
 	}
 }
 
-func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, nickname string, blockTime time.Time) error {
+func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, nickname string, blockTime time.Time) (uuid.UUID, error) {
 	op := "blockedRepository.BlockUser"
 	query := `WITH found_user AS (
     			SELECT id FROM users WHERE nickname = $2 AND id != $1 FOR KEY SHARE
@@ -34,17 +35,25 @@ func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, ni
     			USING found_user fu
     			WHERE (f.user_id1 = fu.id AND f.user_id2 = $1) 
        			OR (f.user_id1 = $1 AND f.user_id2 = fu.id)
+				RETURNING fu.id
+			),
+			blocked_user AS (
+				INSERT INTO blocked_users (blocker_id, blocked_id, block_time)
+				SELECT $1, fu.id, $3 FROM found_user fu
 			)
-			INSERT INTO blocked_users (blocker_id, blocked_id, block_time)
-			SELECT $1, fu.id, $3 FROM found_user fu`
-	res, err := br.storage.Pool.Exec(ctx, query, userId, nickname, blockTime)
+			SELECT id FROM deleted_friend`
+	var id uuid.UUID
+	err := br.storage.Pool.QueryRow(ctx, query, userId, nickname, blockTime).Scan(&id)
 	if err != nil {
-		return errs.NewAppError(op, err)
+		if storage.ErrorAlreadyExists(err) {
+			return uuid.UUID{}, errs.ErrAlreadyExists(op, err)
+		} else if errors.Is(err, storage.ErrNotFound()) {
+			return uuid.UUID{}, errs.ErrNotFound(op)
+		}
+		return uuid.UUID{}, errs.NewAppError(op, err)
 	}
-	if res.RowsAffected() == 0 {
-		return errs.ErrNotFound(op)
-	}
-	return nil
+
+	return id, nil
 }
 
 func (br *blockedRepository) UnblockUser(ctx context.Context, userId uuid.UUID, nickname string) error {

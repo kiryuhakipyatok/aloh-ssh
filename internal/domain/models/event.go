@@ -5,6 +5,8 @@ const (
 	ACCEPT_FRIEND
 	DENY_FRIEND
 	DELETE_FRIEND
+	BLOCK_USER
+	UNBLOCK_USER
 )
 
 type Event struct {
@@ -36,6 +38,20 @@ func DenyFriendEvent(nickname string) Event {
 func DeleteFriendEvent(nickname string) Event {
 	return Event{
 		Type: DELETE_FRIEND,
+		Data: nickname,
+	}
+}
+
+func BlockUserEvent(nickname string) Event {
+	return Event{
+		Type: BLOCK_USER,
+		Data: nickname,
+	}
+}
+
+func UnblockUserEvent(nickname string) Event {
+	return Event{
+		Type: UNBLOCK_USER,
 		Data: nickname,
 	}
 }
