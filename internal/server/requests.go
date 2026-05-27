@@ -246,7 +246,7 @@ func (s *Server) blockUserRequest(timeout time.Duration) ssh.RequestHandler {
 			return false, castErr(err)
 		}
 
-		if friendId.String() != "" {
+		if friendId != uuid.Nil {
 			friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 			if err != nil {
 				if errors.Is(err, errs.ErrNotFoundBase) {

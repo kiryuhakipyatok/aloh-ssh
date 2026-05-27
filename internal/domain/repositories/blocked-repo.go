@@ -25,7 +25,7 @@ func NewBlockedRepository(s *storage.Storage) BlockedRepository {
 	}
 }
 
-func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, nickname string, blockTime time.Time) (uuid.UUID, error) {
+func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, nickname string	, blockTime time.Time) (uuid.UUID, error) {
 	op := "blockedRepository.BlockUser"
 	query := `WITH found_user AS (
     			SELECT id FROM users WHERE nickname = $2 AND id != $1 FOR KEY SHARE
@@ -41,7 +41,10 @@ func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, ni
 				SELECT $1, fu.id, $3 FROM found_user fu
 				RETURNING blocked_id
 			)
-			SELECT blocked_id FROM blocked_user`
+			SELECT COALESCE(
+			    (SELECT deleted_id FROM deleted_friend),
+			    '00000000-0000-0000-0000-000000000000'
+			) FROM blocked_user`
 	var id uuid.UUID
 	err := br.storage.Pool.QueryRow(ctx, query, userId, nickname, blockTime).Scan(&id)
 	if err != nil {
