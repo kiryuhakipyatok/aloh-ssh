@@ -160,6 +160,7 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID)
 		&pd.RegisterTime,
 		&pd.FriendsReqs,
 		&pd.Friends,
+		&pd.BlockedUsers,
 	); err != nil {
 		if errors.Is(err, storage.ErrNotFound()) {
 			return nil, errs.ErrNotFound(op)
