@@ -1,7 +1,7 @@
 package models
 
 const (
-	NEW_FRIEND = iota
+	NEW_FRIEND_REQ = iota
 	ACCEPT_FRIEND
 	DENY_FRIEND
 	DELETE_FRIEND
@@ -16,7 +16,7 @@ type Event struct {
 
 func NewFriendEvent(nickname string) Event {
 	return Event{
-		Type: NEW_FRIEND,
+		Type: NEW_FRIEND_REQ,
 		Data: nickname,
 	}
 }

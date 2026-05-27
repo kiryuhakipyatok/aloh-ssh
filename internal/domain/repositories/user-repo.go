@@ -136,18 +136,24 @@ func (ur *userRepository) GetPassword(ctx context.Context, nickname string) ([]b
 func (ur *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) (*models.PersonalData, error) {
 	op := "userRepository.GetPersonalData"
 	query := `SELECT u.nickname, u.register_time, 
-    		  COALESCE(
-              	json_agg(json_build_object(
-                			'nickname', friend_u.nickname, 
+    		  COALESCE((
+              	SELECT json_agg(json_build_object(
+                			'nickname', sender.nickname, 
                 			'reqTime',  f.req_time
-            			)) FILTER (WHERE f.user_id1 IS NOT NULL AND f.user_id2 = $1 AND f.status = 'pending'), '[]'
+            			)) FROM friends f JOIN users sender ON sender.id = f.user_id1 WHERE f.user_id2 = u.id AND f.status = 'pending'), '[]'
     		  ) AS friends_reqs,
-			   COALESCE(
-              	json_agg(friend_u.nickname) FILTER (WHERE f.user_id1 IS NOT NULL AND f.user_id2 IS NOT NULL AND f.status = 'active'), '[]'
-    		  ) AS active_friends
-			   FROM users u LEFT JOIN friends f ON (u.id = f.user_id1 OR u.id = f.user_id2)
-			   LEFT JOIN users friend_u ON friend_u.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
-      		   WHERE u.id = $1 GROUP BY u.id, u.nickname, u.register_time`
+			   COALESCE((
+				SELECT json_agg(friend_nicknames.nickname)
+				FROM friends f JOIN users friend_nicknames ON 
+				friend_nicknames.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
+                WHERE (f.user_id1 = u.id OR f.user_id2 = u.id) AND f.status = 'active'), '[]'
+    		  ) AS active_friends,
+			   COALESCE((
+              	SELECT json_agg(blocked_nickname.nickname)
+				FROM blocked_users bu JOIN users blocked_nickname ON 
+				bu.blocked_id = blocked_nickname.id WHERE bu.blocker_id = u.id), '[]'
+			  ) AS blocked_users
+			   FROM users u WHERE u.id = $1`
 	pd := models.PersonalData{}
 	if err := ur.storage.Pool.QueryRow(ctx, query, userId).Scan(
 		&pd.Nickname,
