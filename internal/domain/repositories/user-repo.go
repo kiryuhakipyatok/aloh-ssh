@@ -169,6 +169,3 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID)
 	}
 	return &pd, nil
 }
-
-// ON CONFLICT (LEAST(user_id1, user_id2), GREATEST(user_id1, user_id2))
-//     			DO UPDATE SET status = 'active' WHERE friends.user_id2 = $1 AND friends.status = 'pending'

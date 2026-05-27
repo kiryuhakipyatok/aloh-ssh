@@ -35,13 +35,13 @@ func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, ni
     			USING found_user fu
     			WHERE (f.user_id1 = fu.id AND f.user_id2 = $1) 
        			OR (f.user_id1 = $1 AND f.user_id2 = fu.id)
-				RETURNING fu.id
 			),
 			blocked_user AS (
 				INSERT INTO blocked_users (blocker_id, blocked_id, block_time)
 				SELECT $1, fu.id, $3 FROM found_user fu
+				RETURNING blocked_id
 			)
-			SELECT id FROM deleted_friend`
+			SELECT blocked_id FROM blocked_user`
 	var id uuid.UUID
 	err := br.storage.Pool.QueryRow(ctx, query, userId, nickname, blockTime).Scan(&id)
 	if err != nil {
