@@ -25,7 +25,7 @@ func NewBlockedRepository(s *storage.Storage) BlockedRepository {
 	}
 }
 
-func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, nickname string	, blockTime time.Time) (uuid.UUID, error) {
+func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, nickname string, blockTime time.Time) (uuid.UUID, error) {
 	op := "blockedRepository.BlockUser"
 	query := `WITH found_user AS (
     			SELECT id FROM users WHERE nickname = $2 AND id != $1 FOR KEY SHARE
@@ -35,6 +35,7 @@ func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, ni
     			USING found_user fu
     			WHERE (f.user_id1 = fu.id AND f.user_id2 = $1) 
        			OR (f.user_id1 = $1 AND f.user_id2 = fu.id)
+				RETURNING fu.id AS deleted_id
 			),
 			blocked_user AS (
 				INSERT INTO blocked_users (blocker_id, blocked_id, block_time)
