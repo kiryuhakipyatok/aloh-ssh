@@ -332,6 +332,25 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 
 	encoder := json.NewEncoder(channel)
 
+	go func() {
+		ticker := time.NewTicker(s.cfg.KeepAliveTimeout)
+
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if _, err := channel.SendRequest("keepalive", false, nil); err != nil {
+					log.Error("failed to send keepalive request", logger.Err(err))
+				}
+			}
+
+		}
+
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():

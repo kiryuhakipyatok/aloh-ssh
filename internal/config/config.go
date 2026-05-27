@@ -24,9 +24,11 @@ type App struct {
 }
 
 type Server struct {
-	Host    string        `mapstructure:"host"`
-	Port    string        `mapstructure:"port"`
-	Timeout time.Duration `mapstructure:"timeout"`
+	Host             string        `mapstructure:"host"`
+	Port             string        `mapstructure:"port"`
+	Timeout          time.Duration `mapstructure:"timeout"`
+	IdleTimeout      time.Duration `mapstructure:"idleTimeout"`
+	KeepAliveTimeout time.Duration `mapstructure:"keepAliveTimeout"`
 }
 
 type Storage struct {

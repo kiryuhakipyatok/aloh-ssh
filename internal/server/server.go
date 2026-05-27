@@ -18,6 +18,7 @@ type Server struct {
 	sessionService   services.SessionService
 	friendshipSerive services.FriendshipService
 	blockedService   services.BlockedService
+	cfg              config.Server
 	log              *logger.Logger
 }
 
@@ -43,26 +44,28 @@ func NewServer(nss NewServerSetup) *Server {
 		sessionService:   nss.SessionService,
 		friendshipSerive: nss.FriendshipService,
 		blockedService:   nss.BlockedService,
+		cfg:              nss.Cfg,
 		log:              nss.Log,
 	}
 	server := &ssh.Server{
 		Addr:             addr,
-		PublicKeyHandler: s.publicKeyHandler(nss.Cfg.Timeout),
+		PublicKeyHandler: s.publicKeyHandler(s.cfg.Timeout),
 		RequestHandlers: map[string]ssh.RequestHandler{
-			"pswrd":         s.passwordRequest(nss.Cfg.Timeout),
-			"key":           s.setNewKeyRequest(nss.Cfg.Timeout),
-			"new-friend":    s.newFriendRequest(nss.Cfg.Timeout),
-			"accept-friend": s.acceptFriendshipRequest(nss.Cfg.Timeout),
-			"deny-friend":   s.denyFriendshipRequest(nss.Cfg.Timeout),
-			"personal-data": s.fetchPersonalRequest(nss.Cfg.Timeout),
-			"delete-friend": s.deleteFromFriendsRequest(nss.Cfg.Timeout),
-			"block-user":    s.blockUserRequest(nss.Cfg.Timeout),
-			"unblock-user":  s.unblockUserRequest(nss.Cfg.Timeout),
+			"pswrd":         s.passwordRequest(s.cfg.Timeout),
+			"key":           s.setNewKeyRequest(s.cfg.Timeout),
+			"new-friend":    s.newFriendRequest(s.cfg.Timeout),
+			"accept-friend": s.acceptFriendshipRequest(s.cfg.Timeout),
+			"deny-friend":   s.denyFriendshipRequest(s.cfg.Timeout),
+			"personal-data": s.fetchPersonalRequest(s.cfg.Timeout),
+			"delete-friend": s.deleteFromFriendsRequest(s.cfg.Timeout),
+			"block-user":    s.blockUserRequest(s.cfg.Timeout),
+			"unblock-user":  s.unblockUserRequest(s.cfg.Timeout),
 		},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
 			"event-channel": s.proccessEventChannel,
 		},
-		PasswordHandler: s.passwordHandler(nss.Cfg.Timeout),
+		PasswordHandler: s.passwordHandler(s.cfg.Timeout),
+		IdleTimeout:     s.cfg.IdleTimeout,
 	}
 
 	s.serv = server
