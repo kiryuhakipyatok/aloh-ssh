@@ -119,12 +119,15 @@ func (ur *userRepository) NewKeys(ctx context.Context, nickname string, key, fin
 
 func (ur *userRepository) GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error) {
 	op := "userRepository.GetPassword"
-	query := "SELECT password FROM users WHERE nickname = $1"
+	query := "SELECT id, password FROM users WHERE nickname = $1"
 	var res struct {
-		pswrd []byte
 		id    uuid.UUID
+		pswrd []byte
 	}
-	if err := ur.storage.Pool.QueryRow(ctx, query, nickname).Scan(&res); err != nil {
+	if err := ur.storage.Pool.QueryRow(ctx, query, nickname).Scan(
+		&res.id,
+		&res.pswrd,
+	); err != nil {
 		if errors.Is(err, storage.ErrNotFound()) {
 			return nil, uuid.UUID{}, errs.ErrNotFound(op)
 		}
