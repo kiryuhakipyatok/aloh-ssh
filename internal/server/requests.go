@@ -256,9 +256,9 @@ func (s *Server) blockUserRequest(timeout time.Duration) ssh.RequestHandler {
 					return false, castErr(err)
 				}
 			} else {
-				deleteFriendEvent := models.DeleteFriendEvent(nickname)
+				blockFriendEvent := models.BlockUserEvent(nickname)
 				select {
-				case friendSession.EventsChan <- deleteFriendEvent:
+				case friendSession.EventsChan <- blockFriendEvent:
 				default:
 				}
 			}
