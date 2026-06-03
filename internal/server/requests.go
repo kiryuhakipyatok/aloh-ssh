@@ -414,7 +414,7 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 	}
 
 	defer func() {
-		usersFriends, err := s.userService.GetUsersFriends(ctx, userID)
+		usersFriends, err := s.userService.GetUsersFriends(context.Background(), userID)
 		if err != nil {
 			log.Error("failed to get user", logger.Err(err), logUserNickname)
 		} else {
