@@ -370,9 +370,9 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 			log.Error("failed to get user", logger.Err(err), logUserNickname)
 		} else {
 			var wg sync.WaitGroup
-			for _, friendId := range user.PersonalData.Friends {
+			for _, friend := range user.PersonalData.Friends {
 				wg.Go(func() {
-					friendSession, err := s.sessionService.GetSession(context.Background(), friendId)
+					friendSession, err := s.sessionService.GetSession(context.Background(), friend.ID)
 					if err != nil {
 						if errors.Is(err, errs.ErrNotFoundBase) {
 							log.Info("friend is offline", logUserNickname)

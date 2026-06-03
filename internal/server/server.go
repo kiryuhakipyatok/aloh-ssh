@@ -96,9 +96,9 @@ func (s *Server) passwordHandler(timeout time.Duration) ssh.PasswordHandler {
 			log.Error("failed to get user", logger.Err(err), logUserNickname)
 			return false
 		}
-		for _, friendId := range user.PersonalData.Friends {
+		for _, friend := range user.PersonalData.Friends {
 			go func() {
-				friendSession, err := s.sessionService.GetSession(appCtx, friendId)
+				friendSession, err := s.sessionService.GetSession(appCtx, friend.ID)
 				if err != nil {
 					if errors.Is(err, errs.ErrNotFoundBase) {
 						log.Info("friend is offline", logUserNickname)
@@ -160,9 +160,9 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 					return false
 				}
 
-				for _, friendId := range user.PersonalData.Friends {
+				for _, friend := range user.PersonalData.Friends {
 					go func() {
-						friendSession, err := s.sessionService.GetSession(appCtx, friendId)
+						friendSession, err := s.sessionService.GetSession(appCtx, friend.ID)
 						if err != nil {
 							if errors.Is(err, errs.ErrNotFoundBase) {
 								log.Info("friend is offline", logUserNickname)

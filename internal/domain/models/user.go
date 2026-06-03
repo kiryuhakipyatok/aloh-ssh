@@ -7,19 +7,24 @@ import (
 )
 
 type User struct {
-	ID           uuid.UUID
+	ID           uuid.UUID    `json:"id"`
 	PersonalData PersonalData `json:"personalData"`
-	Key          string
-	Fingerprint  string
-	Password     []byte
+	Key          string       `json:"key"`
+	Fingerprint  string       `json:"fingerprint"`
+	Password     []byte       `json:"-"`
 }
 
 type PersonalData struct {
 	Nickname     string      `json:"nickname"`
 	RegisterTime time.Time   `json:"registerTime"`
 	FriendsReqs  []FriendReq `json:"friendsReqs"`
-	Friends      uuid.UUIDs  `json:"friends"`
-	BlockedUsers uuid.UUIDs  `json:"blocked-users"`
+	Friends      []Friend    `json:"-"`
+	BlockedUsers []string    `json:"blocked-users"`
+}
+
+type Friend struct {
+	ID       uuid.UUID `json:"id"`
+	Nickname string    `json:"nickname"`
 }
 
 type FriendReq struct {

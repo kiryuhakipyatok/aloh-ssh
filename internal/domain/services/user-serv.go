@@ -189,6 +189,12 @@ func (us *userService) CheckPassword(ctx context.Context, nickname string, passw
 	return id, nil
 }
 
+type PersonalToGet struct {
+	models.PersonalData
+	Friends      []string `json:"friends"`
+	RegisterTime string   `json:"registerTime"`
+}
+
 func (us *userService) GetPersonalData(ctx context.Context, userID uuid.UUID) ([]byte, error) {
 	op := "userService.GetPersonalData"
 
@@ -202,7 +208,23 @@ func (us *userService) GetPersonalData(ctx context.Context, userID uuid.UUID) ([
 		return nil, errs.NewAppError(op, err)
 	}
 
-	personalDataBytes, err := json.Marshal(personalData)
+	friendsNicknames := make([]string, 0, len(personalData.Friends))
+
+	for _, f := range personalData.Friends {
+		friendsNicknames = append(friendsNicknames, f.Nickname)
+	}
+
+	pdg := PersonalToGet{
+		PersonalData: models.PersonalData{
+			Nickname:     personalData.Nickname,
+			FriendsReqs:  personalData.FriendsReqs,
+			BlockedUsers: personalData.BlockedUsers,
+		},
+		RegisterTime: personalData.RegisterTime.Format("2006-01-02"),
+		Friends:      friendsNicknames,
+	}
+
+	personalDataBytes, err := json.Marshal(pdg)
 	if err != nil {
 		log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
 		return nil, errs.NewAppError(op, err)
