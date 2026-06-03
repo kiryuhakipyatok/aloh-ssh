@@ -77,9 +77,7 @@ func (s *Server) newFriendRequest(timeout time.Duration) ssh.RequestHandler {
 		}
 		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 		if err != nil {
-			if errors.Is(err, errs.ErrNotFoundBase) {
-				log.Info("friend is offline", logUserNickname)
-			} else {
+			if !errors.Is(err, errs.ErrNotFoundBase) {
 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
 			}
 
@@ -129,9 +127,7 @@ func (s *Server) acceptFriendshipRequest(timeout time.Duration) ssh.RequestHandl
 
 		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 		if err != nil {
-			if errors.Is(err, errs.ErrNotFoundBase) {
-				log.Info("friend is offline", logUserNickname)
-			} else {
+			if !errors.Is(err, errs.ErrNotFoundBase) {
 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
 			}
 
@@ -210,9 +206,7 @@ func (s *Server) deleteFromFriendsRequest(timeout time.Duration) ssh.RequestHand
 		}
 		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 		if err != nil {
-			if errors.Is(err, errs.ErrNotFoundBase) {
-				log.Info("friend is offline", logUserNickname)
-			} else {
+			if !errors.Is(err, errs.ErrNotFoundBase) {
 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
 			}
 			return
@@ -341,9 +335,7 @@ func (s *Server) blockUserRequest(timeout time.Duration) ssh.RequestHandler {
 			}
 			friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 			if err != nil {
-				if errors.Is(err, errs.ErrNotFoundBase) {
-					log.Info("friend is offline", logUserNickname)
-				} else {
+				if !errors.Is(err, errs.ErrNotFoundBase) {
 					log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
 				}
 				return
@@ -423,9 +415,7 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 				wg.Go(func() {
 					friendSession, err := s.sessionService.GetSession(context.Background(), friend.ID)
 					if err != nil {
-						if errors.Is(err, errs.ErrNotFoundBase) {
-							log.Info("friend is offline", logUserNickname)
-						} else {
+						if !errors.Is(err, errs.ErrNotFoundBase) {
 							log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
 						}
 						return
@@ -464,9 +454,7 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 			go func(friend models.Friend) {
 				_, err := s.sessionService.GetSession(ctx, friend.ID)
 				if err != nil {
-					if errors.Is(err, errs.ErrNotFoundBase) {
-						log.Info("friend is offline", logUserNickname)
-					} else {
+					if !errors.Is(err, errs.ErrNotFoundBase) {
 						log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
 					}
 					return

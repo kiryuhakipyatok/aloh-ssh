@@ -7,9 +7,8 @@ import (
 )
 
 type Session struct {
-	UserID      uuid.UUID
-	EventsChan  chan Event
-	CreatedTime time.Time
+	UserID          uuid.UUID
+	EventsChan      chan Event
+	CurrentConnects []string
+	CreatedTime     time.Time
 }
-
-
