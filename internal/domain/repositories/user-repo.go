@@ -18,6 +18,7 @@ type UserRepository interface {
 	NewKeys(ctx context.Context, nickname string, key, fingerprint string) error
 	GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error)
 	GetPersonalData(ctx context.Context, userId uuid.UUID) (*models.PersonalData, error)
+	GetUsersFriends(ctx context.Context, userId uuid.UUID) ([]models.Friend, error)
 }
 
 type userRepository struct {
@@ -91,6 +92,39 @@ func (ur *userRepository) GetUser(ctx context.Context, nickname string) (*models
 	return &user, nil
 }
 
+func (ur *userRepository) GetUsersFriends(ctx context.Context, userId uuid.UUID) ([]models.Friend, error) {
+	op := "userRepository.GetActiveFriends"
+	query := `
+		SELECT u.id, u.nickname
+		FROM friends f 
+		JOIN users u ON u.id = (CASE WHEN f.user_id1 = $1 THEN f.user_id2 ELSE f.user_id1 END)
+		WHERE (f.user_id1 = $1 OR f.user_id2 = $1) AND f.status = 'active'
+	`
+	rows, err := ur.storage.Pool.Query(ctx, query, userId)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound()) {
+			return nil, errs.ErrNotFound(op)
+		}
+		return nil, errs.NewAppError(op, err)
+	}
+	defer rows.Close()
+
+	var friends []models.Friend
+	for rows.Next() {
+		var f models.Friend
+		if err := rows.Scan(&f.ID, &f.Nickname); err != nil {
+			return nil, errs.NewAppError(op, err)
+		}
+		friends = append(friends, f)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, errs.NewAppError(op, err)
+	}
+
+	return friends, nil
+}
+
 func (ur *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) (*models.PersonalData, error) {
 	op := "userRepository.GetPersonalData"
 	query := `SELECT u.nickname, u.register_time, 
@@ -130,7 +164,6 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID)
 	}
 	return &pd, nil
 }
-
 
 func (ur *userRepository) SetPassword(ctx context.Context, nickname string, password []byte) error {
 	op := "userRepository.Create"
@@ -176,4 +209,3 @@ func (ur *userRepository) GetPassword(ctx context.Context, nickname string) ([]b
 	}
 	return res.pswrd, res.id, nil
 }
-

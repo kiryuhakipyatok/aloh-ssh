@@ -17,7 +17,7 @@ import (
 
 type UserService interface {
 	NewUser(ctx context.Context, nickname string, key ssh.PublicKey) (uuid.UUID, error)
-	//IsNew(ctx context.Context, nickname string, key ssh.PublicKey) (bool, error)
+	GetUsersFriends(ctx context.Context, userID uuid.UUID) ([]models.Friend, error)
 	GetUser(ctx context.Context, nickname string) (*models.User, error)
 	AddPassword(ctx context.Context, nickname string, password []byte) error
 	DeleteUser(ctx context.Context, nickname string) error
@@ -204,4 +204,22 @@ func (us *userService) GetPersonalData(ctx context.Context, userID uuid.UUID) (*
 	log.Info("user's personal data got successfully", logUserNickname)
 
 	return personalData, nil
+}
+
+func (us *userService) GetUsersFriends(ctx context.Context, userID uuid.UUID) ([]models.Friend, error) {
+	op := "userService.GetUsersFriends"
+
+	log := us.logger.AddOp(op)
+	logUserNickname := logger.Attr("nickname", userID)
+	log.Info("getting user's friends", logUserNickname)
+
+	friends, err := us.userRepository.GetUsersFriends(ctx, userID)
+	if err != nil {
+		log.Error("failed to get user's friends", logUserNickname, logger.Err(err))
+		return nil, errs.NewAppError(op, err)
+	}
+
+	log.Info("user's friends got successfully", logUserNickname)
+
+	return friends, nil
 }

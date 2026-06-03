@@ -236,9 +236,8 @@ func (s *Server) deleteFromFriendsRequest(timeout time.Duration) ssh.RequestHand
 
 type PersonalToGet struct {
 	models.PersonalData
-	Friends       []string `json:"friends"`
-	OnlineFriends []string `json:"onlineFriends"`
-	RegisterTime  string   `json:"registerTime"`
+	Friends      []string `json:"friends"`
+	RegisterTime string   `json:"registerTime"`
 }
 
 func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler {
@@ -271,9 +270,14 @@ func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler 
 				FriendsReqs:  personalData.FriendsReqs,
 				BlockedUsers: personalData.BlockedUsers,
 			},
-			RegisterTime:  personalData.RegisterTime.Format("2006-01-02"),
-			Friends:       friendsNicknames,
-			OnlineFriends: make([]string, 0, len(personalData.Friends)),
+			RegisterTime: personalData.RegisterTime.Format("2006-01-02"),
+			Friends:      friendsNicknames,
+		}
+
+		personalDataBytes, err := json.Marshal(pdg)
+		if err != nil {
+			log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
+			return false, castErr(err)
 		}
 
 		for _, friend := range personalData.Friends {
@@ -289,7 +293,6 @@ func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler 
 					}
 					return
 				}
-				pdg.OnlineFriends = append(pdg.OnlineFriends, friend.Nickname)
 				friendsOnlineEvent := models.FriendOnlineEvent(nickname)
 				select {
 				case friendSession.EventsChan <- friendsOnlineEvent:
@@ -297,12 +300,6 @@ func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler 
 				default:
 				}
 			}(friend)
-		}
-
-		personalDataBytes, err := json.Marshal(pdg)
-		if err != nil {
-			log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
-			return false, castErr(err)
 		}
 
 		log.Info("user's personal data fetched successfully", logUserNickname)
@@ -417,12 +414,12 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 	}
 
 	defer func() {
-		user, err := s.userService.GetUser(context.Background(), nickname)
+		usersFriends, err := s.userService.GetUsersFriends(ctx, userID)
 		if err != nil {
 			log.Error("failed to get user", logger.Err(err), logUserNickname)
 		} else {
 			var wg sync.WaitGroup
-			for _, friend := range user.PersonalData.Friends {
+			for _, friend := range usersFriends {
 				wg.Go(func() {
 					friendSession, err := s.sessionService.GetSession(context.Background(), friend.ID)
 					if err != nil {
@@ -457,6 +454,34 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 	}
 
 	encoder := json.NewEncoder(channel)
+
+	usersFriends, err := s.userService.GetUsersFriends(ctx, userID)
+	if err != nil {
+		log.Error("failed to get user's friends", logger.Err(err), logUserNickname)
+	} else {
+		for _, friend := range usersFriends {
+
+			go func(friend models.Friend) {
+				_, err := s.sessionService.GetSession(ctx, friend.ID)
+				if err != nil {
+					if errors.Is(err, errs.ErrNotFoundBase) {
+						log.Info("friend is offline", logUserNickname)
+					} else {
+						log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+					}
+					return
+				}
+				friendsOnlineEvent := models.FriendOnlineEvent(friend.Nickname)
+				select {
+				case userSession.EventsChan <- friendsOnlineEvent:
+					log.Info("online event sended successfully", logUserNickname)
+				default:
+				}
+			}(friend)
+
+		}
+
+	}
 
 	go func() {
 		ticker := time.NewTicker(s.cfg.KeepAliveTimeout)
