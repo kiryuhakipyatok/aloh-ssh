@@ -236,8 +236,9 @@ func (s *Server) deleteFromFriendsRequest(timeout time.Duration) ssh.RequestHand
 
 type PersonalToGet struct {
 	models.PersonalData
-	Friends      []string `json:"friends"`
-	RegisterTime string   `json:"registerTime"`
+	Friends       []string `json:"friends"`
+	OnlineFriends []string `json:"onlineFriends"`
+	RegisterTime  string   `json:"registerTime"`
 }
 
 func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler {
@@ -270,19 +271,16 @@ func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler 
 				FriendsReqs:  personalData.FriendsReqs,
 				BlockedUsers: personalData.BlockedUsers,
 			},
-			RegisterTime: personalData.RegisterTime.Format("2006-01-02"),
-			Friends:      friendsNicknames,
-		}
-
-		personalDataBytes, err := json.Marshal(pdg)
-		if err != nil {
-			log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
-			return false, castErr(err)
+			RegisterTime:  personalData.RegisterTime.Format("2006-01-02"),
+			Friends:       friendsNicknames,
+			OnlineFriends: make([]string, 0, len(personalData.Friends)),
 		}
 
 		for _, friend := range personalData.Friends {
-			go func() {
-				friendSession, err := s.sessionService.GetSession(appCtx, friend.ID)
+			go func(friend models.Friend) {
+				frCtx, cancel := context.WithTimeout(context.Background(), timeout)
+				defer cancel()
+				friendSession, err := s.sessionService.GetSession(frCtx, friend.ID)
 				if err != nil {
 					if errors.Is(err, errs.ErrNotFoundBase) {
 						log.Info("friend is offline", logUserNickname)
@@ -291,14 +289,20 @@ func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler 
 					}
 					return
 				}
-				friendOnlineEvent := models.FriendOnlineEvent(nickname)
+				pdg.OnlineFriends = append(pdg.OnlineFriends, friend.Nickname)
+				friendsOnlineEvent := models.FriendOnlineEvent(nickname)
 				select {
-				case friendSession.EventsChan <- friendOnlineEvent:
+				case friendSession.EventsChan <- friendsOnlineEvent:
 					log.Info("online event sended successfully", logUserNickname)
 				default:
 				}
+			}(friend)
+		}
 
-			}()
+		personalDataBytes, err := json.Marshal(pdg)
+		if err != nil {
+			log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
+			return false, castErr(err)
 		}
 
 		log.Info("user's personal data fetched successfully", logUserNickname)
