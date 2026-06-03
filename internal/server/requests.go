@@ -198,6 +198,7 @@ func (s *Server) deleteFromFriendsRequest(timeout time.Duration) ssh.RequestHand
 		userSession, err := s.sessionService.GetSession(appCtx, userID)
 		if err != nil {
 			log.Error("failed to get user's session", logger.Err(err), logUserNickname)
+			return false, castErr(err)
 		}
 		friendOfflineEvent := models.FriendOfflineEvent(friendNickname)
 		select {
@@ -402,6 +403,12 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 	userID, ok := ctx.Value("userID").(uuid.UUID)
 	if !ok {
 		log.Error("failed to get user id", logUserNickname)
+		return
+	}
+	appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
+	defer cancel()
+	if err := s.sessionService.NewSession(appCtx, userID); err != nil {
+		log.Error("failed to create session", logger.Err(err), logUserNickname)
 		return
 	}
 

@@ -153,10 +153,7 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 			equal := ssh.KeysEqual(userKey, key)
 			if equal {
 				ctx.SetValue("userID", user.ID)
-				if err := s.sessionService.NewSession(appCtx, user.ID); err != nil {
-					log.Error("failed to create session", logger.Err(err), logUserNickname)
-					return false
-				}
+			
 
 				// for _, friend := range user.PersonalData.Friends {
 				// 	go func() {
@@ -179,7 +176,7 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 				// 	}()
 				// }
 			}
-			return equal
+			return ssh.KeysEqual(userKey, key)
 		}
 
 	}
