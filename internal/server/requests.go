@@ -253,7 +253,7 @@ func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler 
 			log.Error("failed to fetch personal data", logger.Err(err), logUserNickname)
 			return false, castErr(err)
 		}
-		log.Info("user's key updated successfully", logUserNickname)
+		log.Info("user's personal data fetched successfully", logUserNickname)
 		return true, data
 	}
 }

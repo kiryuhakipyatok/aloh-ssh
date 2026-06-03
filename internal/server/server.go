@@ -174,6 +174,7 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 						friendOnlineEvent := models.FriendOnlineEvent(nickname)
 						select {
 						case friendSession.EventsChan <- friendOnlineEvent:
+							log.Info("online event sended successfully", logUserNickname)
 						default:
 						}
 
