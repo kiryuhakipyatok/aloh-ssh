@@ -2,7 +2,9 @@ package server
 
 import (
 	"aloh-ssh/internal/config"
+	"aloh-ssh/internal/domain/models"
 	"aloh-ssh/internal/domain/services"
+	"aloh-ssh/pkg/errs"
 	"aloh-ssh/pkg/logger"
 	"context"
 	"errors"
@@ -89,6 +91,30 @@ func (s *Server) passwordHandler(timeout time.Duration) ssh.PasswordHandler {
 			return false
 		}
 		ctx.SetValue("userID", id)
+		user, err := s.userService.GetUser(ctx, nickname)
+		if err != nil {
+			log.Error("failed to get user", logger.Err(err), logUserNickname)
+			return false
+		}
+		for _, friendId := range user.PersonalData.Friends {
+			go func() {
+				friendSession, err := s.sessionService.GetSession(appCtx, friendId)
+				if err != nil {
+					if errors.Is(err, errs.ErrNotFoundBase) {
+						log.Info("friend is offline", logUserNickname)
+					} else {
+						log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+					}
+					return
+				}
+				friendOnlineEvent := models.FriendOnlineEvent(nickname)
+				select {
+				case friendSession.EventsChan <- friendOnlineEvent:
+				default:
+				}
+
+			}()
+		}
 		return true
 	}
 }
@@ -118,7 +144,7 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 		default:
 			user, err := s.userService.GetUser(ctx, nickname)
 			if err != nil {
-				log.Error("failed to get user's key", logger.Err(err), logUserNickname)
+				log.Error("failed to get user", logger.Err(err), logUserNickname)
 				return false
 			}
 			userKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(user.Key))
@@ -132,6 +158,26 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 				if err := s.sessionService.NewSession(appCtx, user.ID); err != nil {
 					log.Error("failed to create session", logger.Err(err), logUserNickname)
 					return false
+				}
+
+				for _, friendId := range user.PersonalData.Friends {
+					go func() {
+						friendSession, err := s.sessionService.GetSession(appCtx, friendId)
+						if err != nil {
+							if errors.Is(err, errs.ErrNotFoundBase) {
+								log.Info("friend is offline", logUserNickname)
+							} else {
+								log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+							}
+							return
+						}
+						friendOnlineEvent := models.FriendOnlineEvent(nickname)
+						select {
+						case friendSession.EventsChan <- friendOnlineEvent:
+						default:
+						}
+
+					}()
 				}
 			}
 			return equal

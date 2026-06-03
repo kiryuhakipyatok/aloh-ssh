@@ -18,8 +18,8 @@ type PersonalData struct {
 	Nickname     string      `json:"nickname"`
 	RegisterTime time.Time   `json:"registerTime"`
 	FriendsReqs  []FriendReq `json:"friendsReqs"`
-	Friends      []string    `json:"friends"`
-	BlockedUsers []string    `json:"blocked-users"`
+	Friends      uuid.UUIDs  `json:"friends"`
+	BlockedUsers uuid.UUIDs  `json:"blocked-users"`
 }
 
 type FriendReq struct {

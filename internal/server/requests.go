@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/ssh"
@@ -80,15 +81,16 @@ func (s *Server) newFriendRequest(timeout time.Duration) ssh.RequestHandler {
 				log.Info("friend is offline", logUserNickname)
 			} else {
 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-				return false, castErr(err)
 			}
-		} else {
-			newFriendEvent := models.NewFriendEvent(nickname)
-			select {
-			case friendSession.EventsChan <- newFriendEvent:
-			default:
-			}
+
+			return
 		}
+		newFriendEvent := models.NewFriendEvent(nickname)
+		select {
+		case friendSession.EventsChan <- newFriendEvent:
+		default:
+		}
+
 		log.Info("new friend request added successfully", logUserNickname)
 		return true, nil
 	}
@@ -108,26 +110,43 @@ func (s *Server) acceptFriendshipRequest(timeout time.Duration) ssh.RequestHandl
 			log.Error("failed to get user id", logUserNickname)
 			return false, castErr(errs.ErrInvalidType(op))
 		}
+		userSession, err := s.sessionService.GetSession(appCtx, userID)
+		if err != nil {
+			log.Error("failed to get user's session", logger.Err(err), logUserNickname)
+			return false, castErr(err)
+		}
 		friendNickname := string(req.Payload)
 		friendId, err := s.friendshipSerive.AcceptFriendship(appCtx, userID, friendNickname)
 		if err != nil {
 			log.Error("failed to accept friendship", logger.Err(err), logUserNickname)
-			return false, castErr(err)
 		}
+
+		friendOnlineEvent := models.FriendOnlineEvent(friendNickname)
+		select {
+		case userSession.EventsChan <- friendOnlineEvent:
+		default:
+		}
+
 		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 		if err != nil {
 			if errors.Is(err, errs.ErrNotFoundBase) {
 				log.Info("friend is offline", logUserNickname)
 			} else {
 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-				return false, castErr(err)
 			}
-		} else {
-			newFriendEvent := models.AcceptFriendEvent(nickname)
-			select {
-			case friendSession.EventsChan <- newFriendEvent:
-			default:
-			}
+
+			return
+		}
+		newFriendEvent := models.AcceptFriendEvent(nickname)
+		select {
+		case friendSession.EventsChan <- newFriendEvent:
+		default:
+		}
+
+		friendOnlineEvent = models.FriendOnlineEvent(nickname)
+		select {
+		case friendSession.EventsChan <- friendOnlineEvent:
+		default:
 		}
 
 		log.Info("accept friendship request added successfully", logUserNickname)
@@ -180,20 +199,34 @@ func (s *Server) deleteFromFriendsRequest(timeout time.Duration) ssh.RequestHand
 			log.Error("failed to delete from friends", logger.Err(err), logUserNickname)
 			return false, castErr(err)
 		}
+		userSession, err := s.sessionService.GetSession(appCtx, userID)
+		if err != nil {
+			log.Error("failed to get user's session", logger.Err(err), logUserNickname)
+		}
+		friendOfflineEvent := models.FriendOfflineEvent(friendNickname)
+		select {
+		case userSession.EventsChan <- friendOfflineEvent:
+		default:
+		}
 		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 		if err != nil {
 			if errors.Is(err, errs.ErrNotFoundBase) {
 				log.Info("friend is offline", logUserNickname)
 			} else {
 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-				return false, castErr(err)
 			}
-		} else {
-			deleteFriendEvent := models.DeleteFriendEvent(nickname)
-			select {
-			case friendSession.EventsChan <- deleteFriendEvent:
-			default:
-			}
+			return
+		}
+		deleteFriendEvent := models.DeleteFriendEvent(nickname)
+		select {
+		case friendSession.EventsChan <- deleteFriendEvent:
+		default:
+		}
+
+		friendOfflineEvent = models.FriendOfflineEvent(nickname)
+		select {
+		case friendSession.EventsChan <- friendOfflineEvent:
+		default:
 		}
 
 		log.Info("delete from friends request added successfully", logUserNickname)
@@ -247,21 +280,37 @@ func (s *Server) blockUserRequest(timeout time.Duration) ssh.RequestHandler {
 		}
 
 		if friendId != uuid.Nil {
+			userSession, err := s.sessionService.GetSession(appCtx, userID)
+			if err != nil {
+				log.Error("failed to get user's session", logger.Err(err), logUserNickname)
+				return false, castErr(err)
+			}
+			friendOfflineEvent := models.FriendOfflineEvent(userNickname)
+			select {
+			case userSession.EventsChan <- friendOfflineEvent:
+			default:
+			}
 			friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 			if err != nil {
 				if errors.Is(err, errs.ErrNotFoundBase) {
 					log.Info("friend is offline", logUserNickname)
 				} else {
 					log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-					return false, castErr(err)
 				}
-			} else {
-				blockFriendEvent := models.BlockUserEvent(nickname)
-				select {
-				case friendSession.EventsChan <- blockFriendEvent:
-				default:
-				}
+				return
 			}
+			blockFriendEvent := models.BlockUserEvent(nickname)
+			select {
+			case friendSession.EventsChan <- blockFriendEvent:
+			default:
+			}
+
+			friendOfflineEvent = models.FriendOfflineEvent(nickname)
+			select {
+			case friendSession.EventsChan <- friendOfflineEvent:
+			default:
+			}
+
 		}
 
 		log.Info("user blocked successfully", logUserNickname)
@@ -302,7 +351,6 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 		log.Error("failed to accept channel")
 		return
 	}
-	defer channel.Close()
 
 	go gossh.DiscardRequests(requests)
 	nickname := ctx.User()
@@ -317,6 +365,32 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 	}
 
 	defer func() {
+		user, err := s.userService.GetUser(context.Background(), nickname)
+		if err != nil {
+			log.Error("failed to get user", logger.Err(err), logUserNickname)
+		} else {
+			var wg sync.WaitGroup
+			for _, friendId := range user.PersonalData.Friends {
+				wg.Go(func() {
+					friendSession, err := s.sessionService.GetSession(context.Background(), friendId)
+					if err != nil {
+						if errors.Is(err, errs.ErrNotFoundBase) {
+							log.Info("friend is offline", logUserNickname)
+						} else {
+							log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+						}
+						return
+					}
+					friendOfflineEvent := models.FriendOfflineEvent(nickname)
+					select {
+					case friendSession.EventsChan <- friendOfflineEvent:
+					default:
+					}
+				})
+			}
+
+			wg.Wait()
+		}
 		channel.Close()
 		if err := s.sessionService.DeleteSession(context.Background(), userID); err != nil {
 			s.log.Error("failed to delete session", logger.Err(err), logUserNickname)

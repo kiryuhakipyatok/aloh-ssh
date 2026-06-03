@@ -7,6 +7,8 @@ const (
 	DELETE_FRIEND
 	BLOCK_USER
 	UNBLOCK_USER
+	FRIEND_ONLINE
+	FRIEND_OFFLINE
 )
 
 type Event struct {
@@ -52,6 +54,20 @@ func BlockUserEvent(nickname string) Event {
 func UnblockUserEvent(nickname string) Event {
 	return Event{
 		Type: UNBLOCK_USER,
+		Data: nickname,
+	}
+}
+
+func FriendOnlineEvent(nickname string) Event {
+	return Event{
+		Type: FRIEND_ONLINE,
+		Data: nickname,
+	}
+}
+
+func FriendOfflineEvent(nickname string) Event {
+	return Event{
+		Type: FRIEND_OFFLINE,
 		Data: nickname,
 	}
 }
