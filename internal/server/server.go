@@ -2,9 +2,7 @@ package server
 
 import (
 	"aloh-ssh/internal/config"
-	"aloh-ssh/internal/domain/models"
 	"aloh-ssh/internal/domain/services"
-	"aloh-ssh/pkg/errs"
 	"aloh-ssh/pkg/logger"
 	"context"
 	"errors"
@@ -91,30 +89,30 @@ func (s *Server) passwordHandler(timeout time.Duration) ssh.PasswordHandler {
 			return false
 		}
 		ctx.SetValue("userID", id)
-		user, err := s.userService.GetUser(ctx, nickname)
-		if err != nil {
-			log.Error("failed to get user", logger.Err(err), logUserNickname)
-			return false
-		}
-		for _, friend := range user.PersonalData.Friends {
-			go func() {
-				friendSession, err := s.sessionService.GetSession(appCtx, friend.ID)
-				if err != nil {
-					if errors.Is(err, errs.ErrNotFoundBase) {
-						log.Info("friend is offline", logUserNickname)
-					} else {
-						log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-					}
-					return
-				}
-				friendOnlineEvent := models.FriendOnlineEvent(nickname)
-				select {
-				case friendSession.EventsChan <- friendOnlineEvent:
-				default:
-				}
+		// user, err := s.userService.GetUser(ctx, nickname)
+		// if err != nil {
+		// 	log.Error("failed to get user", logger.Err(err), logUserNickname)
+		// 	return false
+		// }
+		// for _, friend := range user.PersonalData.Friends {
+		// 	go func() {
+		// 		friendSession, err := s.sessionService.GetSession(appCtx, friend.ID)
+		// 		if err != nil {
+		// 			if errors.Is(err, errs.ErrNotFoundBase) {
+		// 				log.Info("friend is offline", logUserNickname)
+		// 			} else {
+		// 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+		// 			}
+		// 			return
+		// 		}
+		// 		friendOnlineEvent := models.FriendOnlineEvent(nickname)
+		// 		select {
+		// 		case friendSession.EventsChan <- friendOnlineEvent:
+		// 		default:
+		// 		}
 
-			}()
-		}
+		// 	}()
+		// }
 		return true
 	}
 }
@@ -160,26 +158,26 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 					return false
 				}
 
-				for _, friend := range user.PersonalData.Friends {
-					go func() {
-						friendSession, err := s.sessionService.GetSession(appCtx, friend.ID)
-						if err != nil {
-							if errors.Is(err, errs.ErrNotFoundBase) {
-								log.Info("friend is offline", logUserNickname)
-							} else {
-								log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-							}
-							return
-						}
-						friendOnlineEvent := models.FriendOnlineEvent(nickname)
-						select {
-						case friendSession.EventsChan <- friendOnlineEvent:
-							log.Info("online event sended successfully", logUserNickname)
-						default:
-						}
+				// for _, friend := range user.PersonalData.Friends {
+				// 	go func() {
+				// 		friendSession, err := s.sessionService.GetSession(appCtx, friend.ID)
+				// 		if err != nil {
+				// 			if errors.Is(err, errs.ErrNotFoundBase) {
+				// 				log.Info("friend is offline", logUserNickname)
+				// 			} else {
+				// 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+				// 			}
+				// 			return
+				// 		}
+				// 		friendOnlineEvent := models.FriendOnlineEvent(nickname)
+				// 		select {
+				// 		case friendSession.EventsChan <- friendOnlineEvent:
+				// 			log.Info("online event sended successfully", logUserNickname)
+				// 		default:
+				// 		}
 
-					}()
-				}
+				// 	}()
+				// }
 			}
 			return equal
 		}

@@ -7,7 +7,6 @@ import (
 	"aloh-ssh/pkg/errs"
 	"aloh-ssh/pkg/logger"
 	"context"
-	"encoding/json"
 	"strings"
 	"time"
 
@@ -24,7 +23,7 @@ type UserService interface {
 	DeleteUser(ctx context.Context, nickname string) error
 	SetNewKey(ctx context.Context, nickname string, key []byte) error
 	CheckPassword(ctx context.Context, nickname string, password []byte) (uuid.UUID, error)
-	GetPersonalData(ctx context.Context, userID uuid.UUID) ([]byte, error)
+	GetPersonalData(ctx context.Context, userID uuid.UUID) (*models.PersonalData, error)
 }
 
 type userService struct {
@@ -189,13 +188,7 @@ func (us *userService) CheckPassword(ctx context.Context, nickname string, passw
 	return id, nil
 }
 
-type PersonalToGet struct {
-	models.PersonalData
-	Friends      []string `json:"friends"`
-	RegisterTime string   `json:"registerTime"`
-}
-
-func (us *userService) GetPersonalData(ctx context.Context, userID uuid.UUID) ([]byte, error) {
+func (us *userService) GetPersonalData(ctx context.Context, userID uuid.UUID) (*models.PersonalData, error) {
 	op := "userService.GetPersonalData"
 
 	log := us.logger.AddOp(op)
@@ -208,29 +201,7 @@ func (us *userService) GetPersonalData(ctx context.Context, userID uuid.UUID) ([
 		return nil, errs.NewAppError(op, err)
 	}
 
-	friendsNicknames := make([]string, 0, len(personalData.Friends))
-
-	for _, f := range personalData.Friends {
-		friendsNicknames = append(friendsNicknames, f.Nickname)
-	}
-
-	pdg := PersonalToGet{
-		PersonalData: models.PersonalData{
-			Nickname:     personalData.Nickname,
-			FriendsReqs:  personalData.FriendsReqs,
-			BlockedUsers: personalData.BlockedUsers,
-		},
-		RegisterTime: personalData.RegisterTime.Format("2006-01-02"),
-		Friends:      friendsNicknames,
-	}
-
-	personalDataBytes, err := json.Marshal(pdg)
-	if err != nil {
-		log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
-		return nil, errs.NewAppError(op, err)
-	}
-
 	log.Info("user's personal data got successfully", logUserNickname)
 
-	return personalDataBytes, nil
+	return personalData, nil
 }

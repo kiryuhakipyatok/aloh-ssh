@@ -234,6 +234,12 @@ func (s *Server) deleteFromFriendsRequest(timeout time.Duration) ssh.RequestHand
 	}
 }
 
+type PersonalToGet struct {
+	models.PersonalData
+	Friends      []string `json:"friends"`
+	RegisterTime string   `json:"registerTime"`
+}
+
 func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler {
 	op := "server.fetchPersonalRequest"
 	log := s.log.AddOp(op)
@@ -248,13 +254,55 @@ func (s *Server) fetchPersonalRequest(timeout time.Duration) ssh.RequestHandler 
 			log.Error("failed to get user id", logUserNickname)
 			return false, castErr(errs.ErrInvalidType(op))
 		}
-		data, err := s.userService.GetPersonalData(appCtx, userID)
+		personalData, err := s.userService.GetPersonalData(appCtx, userID)
 		if err != nil {
 			log.Error("failed to fetch personal data", logger.Err(err), logUserNickname)
 			return false, castErr(err)
 		}
+		friendsNicknames := make([]string, 0, len(personalData.Friends))
+
+		for _, f := range personalData.Friends {
+			friendsNicknames = append(friendsNicknames, f.Nickname)
+		}
+		pdg := PersonalToGet{
+			PersonalData: models.PersonalData{
+				Nickname:     personalData.Nickname,
+				FriendsReqs:  personalData.FriendsReqs,
+				BlockedUsers: personalData.BlockedUsers,
+			},
+			RegisterTime: personalData.RegisterTime.Format("2006-01-02"),
+			Friends:      friendsNicknames,
+		}
+
+		personalDataBytes, err := json.Marshal(pdg)
+		if err != nil {
+			log.Error("failed to marshal user's personal data", logUserNickname, logger.Err(err))
+			return false, castErr(err)
+		}
+
+		for _, friend := range personalData.Friends {
+			go func() {
+				friendSession, err := s.sessionService.GetSession(appCtx, friend.ID)
+				if err != nil {
+					if errors.Is(err, errs.ErrNotFoundBase) {
+						log.Info("friend is offline", logUserNickname)
+					} else {
+						log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+					}
+					return
+				}
+				friendOnlineEvent := models.FriendOnlineEvent(nickname)
+				select {
+				case friendSession.EventsChan <- friendOnlineEvent:
+					log.Info("online event sended successfully", logUserNickname)
+				default:
+				}
+
+			}()
+		}
+
 		log.Info("user's personal data fetched successfully", logUserNickname)
-		return true, data
+		return true, personalDataBytes
 	}
 }
 
