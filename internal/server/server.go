@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/charmbracelet/ssh"
 )
@@ -49,22 +48,23 @@ func NewServer(nss NewServerSetup) *Server {
 	}
 	server := &ssh.Server{
 		Addr:             addr,
-		PublicKeyHandler: s.publicKeyHandler(s.cfg.Timeout),
+		PublicKeyHandler: s.publicKeyHandler(),
 		RequestHandlers: map[string]ssh.RequestHandler{
-			"pswrd":         s.passwordRequest(s.cfg.Timeout),
-			"key":           s.setNewKeyRequest(s.cfg.Timeout),
-			"new-friend":    s.newFriendRequest(s.cfg.Timeout),
-			"accept-friend": s.acceptFriendshipRequest(s.cfg.Timeout),
-			"deny-friend":   s.denyFriendshipRequest(s.cfg.Timeout),
-			"personal-data": s.fetchPersonalRequest(s.cfg.Timeout),
-			"delete-friend": s.deleteFromFriendsRequest(s.cfg.Timeout),
-			"block-user":    s.blockUserRequest(s.cfg.Timeout),
-			"unblock-user":  s.unblockUserRequest(s.cfg.Timeout),
+			"pswrd":         s.passwordRequest(),
+			"key":           s.setNewKeyRequest(),
+			"new-friend":    s.newFriendRequest(),
+			"accept-friend": s.acceptFriendshipRequest(),
+			"deny-friend":   s.denyFriendshipRequest(),
+			"personal-data": s.fetchPersonalRequest(),
+			"delete-friend": s.deleteFromFriendsRequest(),
+			"block-user":    s.blockUserRequest(),
+			"unblock-user":  s.unblockUserRequest(),
+			"conns-update":  s.updateCurOnlineRequest(),
 		},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
 			"event-channel": s.proccessEventChannel,
 		},
-		PasswordHandler: s.passwordHandler(s.cfg.Timeout),
+		PasswordHandler: s.passwordHandler(),
 		IdleTimeout:     s.cfg.IdleTimeout,
 	}
 
@@ -72,7 +72,7 @@ func NewServer(nss NewServerSetup) *Server {
 	return s
 }
 
-func (s *Server) passwordHandler(timeout time.Duration) ssh.PasswordHandler {
+func (s *Server) passwordHandler() ssh.PasswordHandler {
 	op := "server.passwordHandler"
 	log := s.log.AddOp(op)
 	return func(ctx ssh.Context, password string) bool {
@@ -81,7 +81,7 @@ func (s *Server) passwordHandler(timeout time.Duration) ssh.PasswordHandler {
 		}
 		nickname := ctx.User()
 		logUserNickname := logger.Attr("nickname", nickname)
-		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
 		id, err := s.userService.CheckPassword(appCtx, nickname, []byte(password))
 		if err != nil {
@@ -117,14 +117,14 @@ func (s *Server) passwordHandler(timeout time.Duration) ssh.PasswordHandler {
 	}
 }
 
-func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
+func (s *Server) publicKeyHandler() ssh.PublicKeyHandler {
 	op := "server.publicKeyHandler"
 	log := s.log.AddOp(op)
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
 		nickname := ctx.User()
 		logUserNickname := logger.Attr("nickname", nickname)
 		log.Info("new connect", logUserNickname)
-		appCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
 		switch ctx.ClientVersion() {
 		case REGISTER:
@@ -153,7 +153,6 @@ func (s *Server) publicKeyHandler(timeout time.Duration) ssh.PublicKeyHandler {
 			equal := ssh.KeysEqual(userKey, key)
 			if equal {
 				ctx.SetValue("userID", user.ID)
-			
 
 				// for _, friend := range user.PersonalData.Friends {
 				// 	go func() {
