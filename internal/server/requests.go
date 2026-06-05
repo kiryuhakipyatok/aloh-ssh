@@ -119,12 +119,6 @@ func (s *Server) acceptFriendshipRequest() ssh.RequestHandler {
 			log.Error("failed to accept friendship", logger.Err(err), logUserNickname)
 		}
 
-		friendOnlineEvent := models.FriendOnlineEvent([]byte(friendNickname))
-		select {
-		case userSession.EventsChan <- friendOnlineEvent:
-		default:
-		}
-
 		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 		if err != nil {
 			if !errors.Is(err, errs.ErrNotFoundBase) {
@@ -133,13 +127,40 @@ func (s *Server) acceptFriendshipRequest() ssh.RequestHandler {
 
 			return
 		}
+
+		userFcd := models.FriendConnsData{
+			Nickname: nickname,
+			Connects: userSession.CurrentConnects,
+		}
+		userFcdBytes, err := json.Marshal(userFcd)
+		if err != nil {
+			log.Error("failed to marshal user connects data", logger.Err(err), logUserNickname)
+			return
+		}
+
+		friendFcd := models.FriendConnsData{
+			Nickname: friendNickname,
+			Connects: friendSession.CurrentConnects,
+		}
+		friendFcdBytes, err := json.Marshal(friendFcd)
+		if err != nil {
+			log.Error("failed to marshal friend connects data", logger.Err(err), logUserNickname)
+			return
+		}
+
+		friendOnlineEvent := models.FriendOnlineEvent(friendFcdBytes)
+		select {
+		case userSession.EventsChan <- friendOnlineEvent:
+		default:
+		}
+
 		newFriendEvent := models.AcceptFriendEvent([]byte(nickname))
 		select {
 		case friendSession.EventsChan <- newFriendEvent:
 		default:
 		}
 
-		friendOnlineEvent = models.FriendOnlineEvent([]byte(nickname))
+		friendOnlineEvent = models.FriendOnlineEvent(userFcdBytes)
 		select {
 		case friendSession.EventsChan <- friendOnlineEvent:
 		default:
@@ -275,27 +296,27 @@ func (s *Server) fetchPersonalRequest() ssh.RequestHandler {
 			return false, castErr(err)
 		}
 
-		for _, friend := range personalData.Friends {
-			go func(friend models.Friend) {
-				frCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
-				defer cancel()
-				friendSession, err := s.sessionService.GetSession(frCtx, friend.ID)
-				if err != nil {
-					if errors.Is(err, errs.ErrNotFoundBase) {
-						log.Info("friend is offline", logUserNickname)
-					} else {
-						log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-					}
-					return
-				}
-				friendsOnlineEvent := models.FriendOnlineEvent([]byte(nickname))
-				select {
-				case friendSession.EventsChan <- friendsOnlineEvent:
-					log.Info("online event sended successfully", logUserNickname)
-				default:
-				}
-			}(friend)
-		}
+		// for _, friend := range personalData.Friends {
+		// 	go func(friend models.Friend) {
+		// 		frCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
+		// 		defer cancel()
+		// 		friendSession, err := s.sessionService.GetSession(frCtx, friend.ID)
+		// 		if err != nil {
+		// 			if errors.Is(err, errs.ErrNotFoundBase) {
+		// 				log.Info("friend is offline", logUserNickname)
+		// 			} else {
+		// 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
+		// 			}
+		// 			return
+		// 		}
+		// 		friendsOnlineEvent := models.FriendOnlineEvent([]byte(nickname))
+		// 		select {
+		// 		case friendSession.EventsChan <- friendsOnlineEvent:
+		// 			log.Info("online event sended successfully", logUserNickname)
+		// 		default:
+		// 		}
+		// 	}(friend)
+		// }
 
 		log.Info("user's personal data fetched successfully", logUserNickname)
 		return true, personalDataBytes
@@ -416,6 +437,15 @@ func (s *Server) updateCurOnlineRequest() ssh.RequestHandler {
 			log.Error("failed to get user's friends", logger.Err(err), logUserNickname)
 			return false, castErr(err)
 		}
+		fcd := models.FriendConnsData{
+			Nickname: nickname,
+			Connects: userSession.CurrentConnects,
+		}
+		fcdBytes, err := json.Marshal(fcd)
+		if err != nil {
+			log.Error("failed to marshal friend connects data", logger.Err(err), logUserNickname)
+			return
+		}
 		var wg sync.WaitGroup
 		for _, friend := range usersFriends {
 			wg.Go(func() {
@@ -426,15 +456,7 @@ func (s *Server) updateCurOnlineRequest() ssh.RequestHandler {
 					}
 					return
 				}
-				fcd := models.FriendConnsData{
-					Nickname: nickname,
-					Connects: userSession.CurrentConnects,
-				}
-				fcdBytes, err := json.Marshal(fcd)
-				if err != nil {
-					log.Error("failed to marshal friend connects data", logger.Err(err), logUserNickname)
-					return
-				}
+
 				friendOnlineEvent := models.FriendOnlineEvent(fcdBytes)
 				select {
 				case friendSession.EventsChan <- friendOnlineEvent:
@@ -453,6 +475,13 @@ func (s *Server) updateCurOnlineRequest() ssh.RequestHandler {
 func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context) {
 	op := "server.proccessEventChannel"
 	log := s.log.AddOp(op)
+
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Error("failed to close conn", logger.Err(err))
+		}
+	}()
+
 	channel, requests, err := newChan.Accept()
 	if err != nil {
 		log.Error("failed to accept channel")
@@ -472,7 +501,8 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 	}
 	appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 	defer cancel()
-	if err := s.sessionService.NewSession(appCtx, userID); err != nil {
+	userSession, err := s.sessionService.NewSession(appCtx, userID)
+	if err != nil {
 		log.Error("failed to create session", logger.Err(err), logUserNickname)
 		return
 	}
@@ -497,6 +527,7 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 					case friendSession.EventsChan <- friendOfflineEvent:
 					default:
 					}
+
 				})
 			}
 
@@ -509,31 +540,25 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 		s.log.Info("session deleted successfully", logUserNickname)
 	}()
 
-	userSession, err := s.sessionService.GetSession(ctx, userID)
-	if err != nil {
-		log.Error("failed to get user's session", logger.Err(err), logUserNickname)
-		return
-	}
-
 	encoder := json.NewEncoder(channel)
 
 	usersFriends, err := s.userService.GetUsersFriends(ctx, userID)
 	if err != nil {
 		log.Error("failed to get user's friends", logger.Err(err), logUserNickname)
 	} else {
-		fcd := models.FriendConnsData{
+		userFcd := models.FriendConnsData{
 			Nickname: nickname,
 			Connects: userSession.CurrentConnects,
 		}
-		fcdBytes, err := json.Marshal(fcd)
+		userFcdBytes, err := json.Marshal(userFcd)
 		if err != nil {
-			log.Error("failed to marshal friend connects data", logger.Err(err), logUserNickname)
+			log.Error("failed to marshal user's connects data", logger.Err(err), logUserNickname)
 
 		} else {
 			for _, friend := range usersFriends {
 
 				go func(friend models.Friend) {
-					_, err := s.sessionService.GetSession(ctx, friend.ID)
+					friendSession, err := s.sessionService.GetSession(ctx, friend.ID)
 					if err != nil {
 						if !errors.Is(err, errs.ErrNotFoundBase) {
 							log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
@@ -541,12 +566,30 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 						return
 					}
 
-					friendsOnlineEvent := models.FriendOnlineEvent(fcdBytes)
+					userFriendsOnlineEvent := models.FriendOnlineEvent(userFcdBytes)
 					select {
-					case userSession.EventsChan <- friendsOnlineEvent:
+					case userSession.EventsChan <- userFriendsOnlineEvent:
 						log.Info("online event sended successfully", logUserNickname)
 					default:
 					}
+
+					friendFcd := models.FriendConnsData{
+						Nickname: nickname,
+						Connects: userSession.CurrentConnects,
+					}
+					friendFcdBytes, err := json.Marshal(friendFcd)
+					if err != nil {
+						log.Error("failed to marshal friend's connects data", logger.Err(err), logUserNickname)
+						return
+					}
+
+					friendsOnlineEvent := models.FriendOnlineEvent(friendFcdBytes)
+					select {
+					case friendSession.EventsChan <- friendsOnlineEvent:
+						log.Info("online event sended successfully", logUserNickname)
+					default:
+					}
+
 				}(friend)
 
 			}

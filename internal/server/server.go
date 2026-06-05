@@ -134,7 +134,7 @@ func (s *Server) publicKeyHandler() ssh.PublicKeyHandler {
 				return false
 			}
 			ctx.SetValue("userID", id)
-			if err := s.sessionService.NewSession(appCtx, id); err != nil {
+			if _, err := s.sessionService.NewSession(appCtx, id); err != nil {
 				log.Error("failed to create session", logger.Err(err), logUserNickname)
 				return false
 			}

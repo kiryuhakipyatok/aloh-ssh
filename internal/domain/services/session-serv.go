@@ -12,7 +12,7 @@ import (
 )
 
 type SessionService interface {
-	NewSession(ctx context.Context, userID uuid.UUID) error
+	NewSession(ctx context.Context, userID uuid.UUID) (*models.Session, error)
 	DeleteSession(ctx context.Context, userID uuid.UUID) error
 	GetSession(ctx context.Context, userID uuid.UUID) (*models.Session, error)
 }
@@ -29,7 +29,7 @@ func NewSessionService(sr repositories.SessionRepository, l *logger.Logger) Sess
 	}
 }
 
-func (ss *sessionService) NewSession(ctx context.Context, userID uuid.UUID) error {
+func (ss *sessionService) NewSession(ctx context.Context, userID uuid.UUID) (*models.Session, error) {
 	op := "sessionService.NewSession"
 	log := ss.logger.AddOp(op)
 	userIDLog := logger.Attr("userID", userID)
@@ -42,10 +42,10 @@ func (ss *sessionService) NewSession(ctx context.Context, userID uuid.UUID) erro
 	}
 	if err := ss.sessionRepo.NewSession(ctx, session); err != nil {
 		log.Error("failed to create new session", userIDLog, logger.Err(err))
-		return errs.NewAppError(op, err)
+		return nil, errs.NewAppError(op, err)
 	}
 	log.Info("new session created successfully", userIDLog)
-	return nil
+	return session, nil
 }
 
 func (ss *sessionService) DeleteSession(ctx context.Context, userID uuid.UUID) error {
