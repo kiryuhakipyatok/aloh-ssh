@@ -568,8 +568,8 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 					}
 
 					friendFcd := models.FriendConnsData{
-						Nickname: nickname,
-						Connects: userSession.CurrentConnects,
+						Nickname: friend.Nickname,
+						Connects: friendSession.CurrentConnects,
 					}
 					friendFcdBytes, err := json.Marshal(friendFcd)
 					if err != nil {
