@@ -83,7 +83,12 @@ func (s *Server) newFriendRequest() ssh.RequestHandler {
 
 			return
 		}
-		newFriendEvent := models.NewFriendEvent([]byte(nickname))
+		dataNick, err := models.MarshNick(nickname)
+		if err != nil {
+			log.Error("failed to marshak nickname", logger.Err(err), logUserNickname)
+			return false, castErr(err)
+		}
+		newFriendEvent := models.NewFriendEvent(dataNick)
 		select {
 		case friendSession.EventsChan <- newFriendEvent:
 		default:
@@ -148,13 +153,19 @@ func (s *Server) acceptFriendshipRequest() ssh.RequestHandler {
 			return
 		}
 
+		dataNick, err := models.MarshNick(nickname)
+		if err != nil {
+			log.Error("failed to marshak nickname", logger.Err(err), logUserNickname)
+			return false, castErr(err)
+		}
+
 		friendOnlineEvent := models.FriendOnlineEvent(friendFcdBytes)
 		select {
 		case userSession.EventsChan <- friendOnlineEvent:
 		default:
 		}
 
-		newFriendEvent := models.AcceptFriendEvent([]byte(nickname))
+		newFriendEvent := models.AcceptFriendEvent(dataNick)
 		select {
 		case friendSession.EventsChan <- newFriendEvent:
 		default:
@@ -221,7 +232,19 @@ func (s *Server) deleteFromFriendsRequest() ssh.RequestHandler {
 			log.Error("failed to get user's session", logger.Err(err), logUserNickname)
 			return false, castErr(err)
 		}
-		friendOfflineEvent := models.FriendOfflineEvent([]byte(friendNickname))
+		dataNick, err := models.MarshNick(nickname)
+		if err != nil {
+			log.Error("failed to marshal nickname", logger.Err(err), logUserNickname)
+			return false, castErr(err)
+		}
+
+		dataFriendNick, err := models.MarshNick(friendNickname)
+		if err != nil {
+			log.Error("failed to marshak friend nickname", logger.Err(err), logUserNickname)
+			return false, castErr(err)
+		}
+
+		friendOfflineEvent := models.FriendOfflineEvent(dataFriendNick)
 		select {
 		case userSession.EventsChan <- friendOfflineEvent:
 		default:
@@ -233,13 +256,13 @@ func (s *Server) deleteFromFriendsRequest() ssh.RequestHandler {
 			}
 			return
 		}
-		deleteFriendEvent := models.DeleteFriendEvent([]byte(nickname))
+		deleteFriendEvent := models.DeleteFriendEvent(dataNick)
 		select {
 		case friendSession.EventsChan <- deleteFriendEvent:
 		default:
 		}
 
-		friendOfflineEvent = models.FriendOfflineEvent([]byte(nickname))
+		friendOfflineEvent = models.FriendOfflineEvent(dataNick)
 		select {
 		case friendSession.EventsChan <- friendOfflineEvent:
 		default:
@@ -350,7 +373,12 @@ func (s *Server) blockUserRequest() ssh.RequestHandler {
 				log.Error("failed to get user's session", logger.Err(err), logUserNickname)
 				return false, castErr(err)
 			}
-			friendOfflineEvent := models.FriendOfflineEvent([]byte(userNickname))
+			dataUserNick, err := models.MarshNick(userNickname)
+			if err != nil {
+				log.Error("failed to marshal nickname", logger.Err(err), logUserNickname)
+				return false, castErr(err)
+			}
+			friendOfflineEvent := models.FriendOfflineEvent(dataUserNick)
 			select {
 			case userSession.EventsChan <- friendOfflineEvent:
 			default:
@@ -362,13 +390,18 @@ func (s *Server) blockUserRequest() ssh.RequestHandler {
 				}
 				return
 			}
-			blockFriendEvent := models.BlockUserEvent([]byte(nickname))
+			dataNick, err := models.MarshNick(nickname)
+			if err != nil {
+				log.Error("failed to marshal nickname", logger.Err(err), logUserNickname)
+				return false, castErr(err)
+			}
+			blockFriendEvent := models.BlockUserEvent(dataNick)
 			select {
 			case friendSession.EventsChan <- blockFriendEvent:
 			default:
 			}
 
-			friendOfflineEvent = models.FriendOfflineEvent([]byte(nickname))
+			friendOfflineEvent = models.FriendOfflineEvent(dataNick)
 			select {
 			case friendSession.EventsChan <- friendOfflineEvent:
 			default:
@@ -506,6 +539,11 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 		if err != nil {
 			log.Error("failed to get user's friends", logger.Err(err), logUserNickname)
 		} else {
+			dataNick, err := models.MarshNick(nickname)
+			if err != nil {
+				log.Error("failed to marshal nickname", logger.Err(err), logUserNickname)
+				return
+			}
 			var wg sync.WaitGroup
 			for _, friend := range usersFriends {
 				wg.Go(func() {
@@ -516,7 +554,7 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 						}
 						return
 					}
-					friendOfflineEvent := models.FriendOfflineEvent([]byte(nickname))
+					friendOfflineEvent := models.FriendOfflineEvent(dataNick)
 					select {
 					case friendSession.EventsChan <- friendOfflineEvent:
 					default:

@@ -1,5 +1,7 @@
 package models
 
+import "encoding/json"
+
 const (
 	NEW_FRIEND_REQ = iota
 	ACCEPT_FRIEND
@@ -13,8 +15,8 @@ const (
 )
 
 type Event struct {
-	Type uint   `json:"type"`
-	Data []byte `json:"data"`
+	Type uint            `json:"type"`
+	Data json.RawMessage `json:"data"`
 }
 
 type FriendConnsData struct {
@@ -76,6 +78,15 @@ func FriendOfflineEvent(nickname []byte) Event {
 		Type: FRIEND_OFFLINE,
 		Data: nickname,
 	}
+}
+
+func MarshNick(nick string) ([]byte, error) {
+	data, err := json.Marshal(nick)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 // func FriendConnectionsEvent(fcd []byte) Event {
