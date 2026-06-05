@@ -476,12 +476,6 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 	op := "server.proccessEventChannel"
 	log := s.log.AddOp(op)
 
-	defer func() {
-		if err := conn.Close(); err != nil {
-			log.Error("failed to close conn", logger.Err(err))
-		}
-	}()
-
 	channel, requests, err := newChan.Accept()
 	if err != nil {
 		log.Error("failed to accept channel")
