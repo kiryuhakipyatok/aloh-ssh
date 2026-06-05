@@ -555,6 +555,7 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 			log.Error("failed to marshal user's connects data", logger.Err(err), logUserNickname)
 
 		} else {
+			userFriendsOnlineEvent := models.FriendOnlineEvent(userFcdBytes)
 			for _, friend := range usersFriends {
 
 				go func(friend models.Friend) {
@@ -564,13 +565,6 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 							log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
 						}
 						return
-					}
-
-					userFriendsOnlineEvent := models.FriendOnlineEvent(userFcdBytes)
-					select {
-					case userSession.EventsChan <- userFriendsOnlineEvent:
-						log.Info("online event sended successfully", logUserNickname)
-					default:
 					}
 
 					friendFcd := models.FriendConnsData{
@@ -585,8 +579,14 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 
 					friendsOnlineEvent := models.FriendOnlineEvent(friendFcdBytes)
 					select {
-					case friendSession.EventsChan <- friendsOnlineEvent:
-						log.Info("online event sended successfully", logUserNickname)
+					case userSession.EventsChan <- friendsOnlineEvent:
+						log.Info("friend online event sended successfully", logUserNickname)
+					default:
+					}
+
+					select {
+					case friendSession.EventsChan <- userFriendsOnlineEvent:
+						log.Info("user online event sended successfully", logUserNickname)
 					default:
 					}
 
