@@ -12,6 +12,8 @@ const (
 	FRIEND_ONLINE
 	FRIEND_OFFLINE
 	FRIEND_CONNECTIONS
+	UPDATE_HARD_DENOISE
+	UPDATE_SOFT_DENOISE
 )
 
 type Event struct {
@@ -22,6 +24,16 @@ type Event struct {
 type FriendConnsData struct {
 	Nickname string   `json:"nickname"`
 	Connects []string `json:"connects"`
+}
+
+type UsersHardDenoiseData struct {
+	Nickname string `json:"nickname"`
+	State    bool   `json:"state"`
+}
+
+type UsersSoftDenoiseData struct {
+	Nickname string `json:"nickname"`
+	State    bool   `json:"state"`
 }
 
 func NewFriendEvent(nickname []byte) Event {
@@ -77,6 +89,20 @@ func FriendOfflineEvent(nickname []byte) Event {
 	return Event{
 		Type: FRIEND_OFFLINE,
 		Data: nickname,
+	}
+}
+
+func UpdateHardDenoiseEvent(uhdd []byte) Event {
+	return Event{
+		Type: UPDATE_HARD_DENOISE,
+		Data: uhdd,
+	}
+}
+
+func UpdateSoftDenoiseEvent(usdd []byte) Event {
+	return Event{
+		Type: UPDATE_SOFT_DENOISE,
+		Data: usdd,
 	}
 }
 

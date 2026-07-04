@@ -55,6 +55,42 @@ func (s *Server) setNewKeyRequest() ssh.RequestHandler {
 	}
 }
 
+type updateUsersDenoiseData struct {
+	Nickname string   `json:"nickname"`
+	State    bool     `json:"state"`
+	Conns    []string `json:"conns"`
+}
+
+// func (s *Server) updateUsersHardDenoiseRequest() ssh.RequestHandler {
+// 	op := "server.updateUsersHardDenoiseRequest"
+// 	log := s.log.AddOp(op)
+// 	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+// 		nickname := ctx.User()
+// 		logUserNickname := logger.Attr("nickname", nickname)
+// 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
+// 		defer cancel()
+// 		userID, ok := ctx.Value("userID").(uuid.UUID)
+// 		if !ok {
+// 			log.Error("failed to get user id", logUserNickname)
+// 			return false, castErr(errs.ErrInvalidType(op))
+// 		}
+
+// 		d := &updateUsersDenoiseData{}
+
+// 		if err := json.Unmarshal(req.Payload, d); err != nil {
+// 			log.Error("failed to unmarshal users denoise data", logUserNickname)
+// 			return false, castErr(err)
+// 		}
+
+// 		for _, c := range d.Conns {
+
+// 		}
+
+// 		log.Info("new friend request added successfully", logUserNickname)
+// 		return true, nil
+// 	}
+// }
+
 func (s *Server) newFriendRequest() ssh.RequestHandler {
 	op := "server.newFriendRequest"
 	log := s.log.AddOp(op)
