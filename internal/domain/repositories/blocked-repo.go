@@ -11,8 +11,8 @@ import (
 )
 
 type BlockedRepository interface {
-	BlockUser(ctx context.Context, userId, blockedUserId uuid.UUID, blockTime time.Time) (bool, error)
-	UnblockUser(ctx context.Context, userId, unblockedUserId uuid.UUID) error
+	BlockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string, blockTime time.Time) (uuid.UUID, error)
+	UnblockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string) error
 }
 
 type blockedRepository struct {
@@ -25,12 +25,16 @@ func NewBlockedRepository(s *storage.Storage) BlockedRepository {
 	}
 }
 
-func (br *blockedRepository) BlockUser(ctx context.Context, userId, blockedUserId uuid.UUID, blockTime time.Time) (bool, error) {
+func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string, blockTime time.Time) (uuid.UUID, error) {
 	op := "blockedRepository.BlockUser"
-	query := `WITH deleted_friend AS (
-				DELETE FROM friends WHERE user_id1 = $2 AND user_id2 = $1) 
-       			OR (user_id1 = $1 AND user_id2 = $2) 
-				RETURNING $2 AS deleted_friend_id
+	query := `WITH found_user AS (
+				SELECT id FROM user WHERE nickname = $2 AND id != $1 FOR KEY SHARE
+			),
+			deleted_friend AS (
+				DELETE FROM friends f USING found_user fu
+				WHERE f.user_id1 = fu.id AND f.user_id2 = $1) 
+       			OR (f.user_id1 = $1 AND f.user_id2 = fu.id) 
+				RETURNING fu.id AS deleted_friend_id
 			),
 			blocked_user AS (
 				INSERT INTO blocked_users (blocker_id, blocked_id, block_time)
@@ -41,27 +45,25 @@ func (br *blockedRepository) BlockUser(ctx context.Context, userId, blockedUserI
 			    '00000000-0000-0000-0000-000000000000'
 			) FROM blocked_user`
 	var id uuid.UUID
-	err := br.storage.Pool.QueryRow(ctx, query, userId, blockedUserId, blockTime).Scan(&id)
+	err := br.storage.Pool.QueryRow(ctx, query, userId, blockedUserNick, blockTime).Scan(&id)
 	if err != nil {
 		if storage.ErrorAlreadyExists(err) {
-			return false, errs.ErrAlreadyExists(op, err)
+			return uuid.Nil, errs.ErrAlreadyExists(op, err)
 		} else if errors.Is(err, storage.ErrNotFound()) {
-			return false, errs.ErrNotFound(op)
+			return uuid.Nil, errs.ErrNotFound(op)
 		}
-		return false, errs.NewAppError(op, err)
+		return uuid.Nil, errs.NewAppError(op, err)
 	}
 
-	if id == uuid.Nil {
-		return false, nil
-	}
-
-	return true, nil
+	return id, nil
 }
 
-func (br *blockedRepository) UnblockUser(ctx context.Context, userId, unblockedUserId uuid.UUID) error {
+func (br *blockedRepository) UnblockUser(ctx context.Context, userId uuid.UUID, unblockedUserNick string) error {
 	op := "blockedRepository.UnblockUser"
-	query := `DELETE FROM blocked_users blocker_id = $1 AND blocked_id = $2`
-	res, err := br.storage.Pool.Exec(ctx, query, userId, unblockedUserId)
+	query := `DELETE FROM blocked_users bu USING users u
+			  WHERE u.nickname = $2 AND u.id != $1 AND
+      		  bu.blocker_id = $1 AND bu.blocked_id = u.id`
+	res, err := br.storage.Pool.Exec(ctx, query, userId, unblockedUserNick)
 	if err != nil {
 		return errs.NewAppError(op, err)
 	}

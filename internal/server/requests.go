@@ -346,24 +346,20 @@ func (s *Server) blockUserRequest() ssh.RequestHandler {
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
 
-		blockedId, err := uuid.ParseBytes(req.Payload)
-		if err != nil {
-			//log.Error("failed to parse user id", logUserId)
-			return false, castErr(errs.ErrInvalidTypeBase)
-		}
-		isFriend, err := s.blockedService.BlockUser(appCtx, id, blockedId)
+		blockedNickname := string(req.Payload)
+		friendId, err := s.blockedService.BlockUser(appCtx, id, blockedNickname)
 		if err != nil {
 			//	log.Error("failed to block user", logger.Err(err), logUserId)
 			return false, castErr(err)
 		}
 
-		if isFriend {
+		if friendId != uuid.Nil {
 			userSession, err := s.sessionService.GetSession(appCtx, id)
 			if err != nil {
 				//log.Error("failed to get user's session", logger.Err(err), logUserId)
 				return false, castErr(err)
 			}
-			dataBlockedId, err := models.MarshID(blockedId)
+			dataBlockedId, err := models.MarshID(friendId)
 			if err != nil {
 				//log.Error("failed to marshal nickname", logger.Err(err), logUserId)
 				return false, castErr(err)
@@ -373,7 +369,7 @@ func (s *Server) blockUserRequest() ssh.RequestHandler {
 			case userSession.EventsChan <- friendOfflineEvent:
 			default:
 			}
-			friendSession, err := s.sessionService.GetSession(appCtx, blockedId)
+			friendSession, err := s.sessionService.GetSession(appCtx, friendId)
 			if err != nil {
 				if !errors.Is(err, errs.ErrNotFoundBase) {
 					//	log.Error("failed to get friend's session", logger.Err(err), logUserId)
@@ -421,12 +417,8 @@ func (s *Server) unblockUserRequest() ssh.RequestHandler {
 		//log.Info("new unblock user request", logUserId)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-		unblockedId, err := uuid.ParseBytes(req.Payload)
-		if err != nil {
-			//log.Error("failed to parse user id", logUserId)
-			return false, castErr(errs.ErrInvalidTypeBase)
-		}
-		if err := s.blockedService.UnblockUser(appCtx, id, unblockedId); err != nil {
+		unblockedNick := string(req.Payload)
+		if err := s.blockedService.UnblockUser(appCtx, id, unblockedNick); err != nil {
 			//log.Error("failed to unblock user", logger.Err(err), logUserId)
 			return false, castErr(err)
 		}
