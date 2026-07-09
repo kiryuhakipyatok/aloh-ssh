@@ -1,6 +1,6 @@
 -- +goose Up
 ALTER TABLE IF EXISTS users
-ADD COLUMN tagline VARCHAR(28) NOT NULL;
+ADD COLUMN tagline VARCHAR(28) NOT NULL DEFAULT '';
 
 -- +goose Down
 ALTER TABLE IF EXISTS users
