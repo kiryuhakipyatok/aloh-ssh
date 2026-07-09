@@ -9,6 +9,6 @@ import (
 type Session struct {
 	UserID          uuid.UUID
 	EventsChan      chan Event
-	CurrentConnects []string
+	CurrentConnects []uuid.UUID
 	CreatedTime     time.Time
 }

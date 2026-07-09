@@ -19,13 +19,13 @@ type PersonalData struct {
 	Tagline      string      `json:"tagline"`
 	RegisterTime time.Time   `json:"registerTime"`
 	FriendsReqs  []FriendReq `json:"friendsReqs"`
-	Friends      []Friend    `json:"-"`
+	Friends      []Friend    `json:"friends"`
 	BlockedUsers []string    `json:"blocked-users"`
 }
 
 type Friend struct {
 	FriendPersonal `json:"personal"`
-	FriendDenoises   `json:"denoises"`
+	//FriendDenoises   `json:"denoises"`
 	FriendAppereance `json:"appereance"`
 }
 
@@ -34,10 +34,10 @@ type FriendAppereance struct {
 	//Color   string `json:"color"`
 }
 
-type FriendDenoises struct {
-	HardDenoised bool `json:"hard-denoised"`
-	SoftDenoised bool `json:"soft-denoised"`
-}
+// type FriendDenoises struct {
+// 	HardDenoised bool `json:"hard-denoised"`
+// 	SoftDenoised bool `json:"soft-denoised"`
+// }
 
 type FriendPersonal struct {
 	ID       uuid.UUID `json:"id"`

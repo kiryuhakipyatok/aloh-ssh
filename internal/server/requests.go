@@ -283,11 +283,11 @@ func (s *Server) deleteFromFriendsRequest() ssh.RequestHandler {
 	}
 }
 
-type PersonalToGet struct {
-	models.PersonalData
-	Friends      []string `json:"friends"`
-	RegisterTime string   `json:"registerTime"`
-}
+// type PersonalToGet struct {
+// 	models.PersonalData
+// 	Friends      []string `json:"friends"`
+// 	RegisterTime string   `json:"registerTime"`
+// }
 
 func (s *Server) fetchPersonalRequest() ssh.RequestHandler {
 	//op := "server.fetchPersonalRequest"
@@ -311,17 +311,8 @@ func (s *Server) fetchPersonalRequest() ssh.RequestHandler {
 		for _, f := range personalData.Friends {
 			friendsNicknames = append(friendsNicknames, f.Nickname)
 		}
-		pdg := PersonalToGet{
-			PersonalData: models.PersonalData{
-				Nickname:     personalData.Nickname,
-				FriendsReqs:  personalData.FriendsReqs,
-				BlockedUsers: personalData.BlockedUsers,
-			},
-			RegisterTime: personalData.RegisterTime.Format("2006-01-02"),
-			Friends:      friendsNicknames,
-		}
-
-		personalDataBytes, err := json.Marshal(pdg)
+		
+		personalDataBytes, err := json.Marshal(personalData)
 		if err != nil {
 			//log.Error("failed to marshal user's personal data", logUserId, logger.Err(err))
 			return false, castErr(err)
