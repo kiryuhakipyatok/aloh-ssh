@@ -17,13 +17,14 @@ import (
 
 type UserService interface {
 	NewUser(ctx context.Context, nickname string, key ssh.PublicKey) (uuid.UUID, error)
-	GetUsersFriends(ctx context.Context, userID uuid.UUID) ([]models.Friend, error)
-	GetUser(ctx context.Context, nickname string) (*models.User, error)
-	AddPassword(ctx context.Context, nickname string, password []byte) error
-	DeleteUser(ctx context.Context, nickname string) error
-	SetNewKey(ctx context.Context, nickname string, key []byte) error
+	GetUsersFriends(ctx context.Context, id uuid.UUID) ([]models.Friend, error)
+	GetUserByNickname(ctx context.Context, nickname string) (*models.User, error)
+	AddPassword(ctx context.Context, id uuid.UUID, password []byte) error
+	DeleteUser(ctx context.Context, id uuid.UUID) error
+	SetNewKey(ctx context.Context, id uuid.UUID, key []byte) error
 	CheckPassword(ctx context.Context, nickname string, password []byte) (uuid.UUID, error)
-	GetPersonalData(ctx context.Context, userID uuid.UUID) (*models.PersonalData, error)
+	GetPersonalData(ctx context.Context, id uuid.UUID) (*models.PersonalData, error)
+	SetTagline(ctx context.Context, id uuid.UUID, tagline string) error
 }
 
 type userService struct {
@@ -60,6 +61,7 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 		PersonalData: models.PersonalData{
 			Nickname:     nickname,
 			RegisterTime: time.Now().UTC(),
+			Tagline:      "",
 		},
 		Key:         keyString,
 		Fingerprint: fingerprint,
@@ -75,47 +77,26 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 	return id, nil
 }
 
-func (us *userService) AddPassword(ctx context.Context, nickname string, password []byte) error {
+func (us *userService) AddPassword(ctx context.Context, id uuid.UUID, password []byte) error {
 	op := "userService.AddPassword"
 	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", nickname)
-	log.Info("adding password to user", logUserNickname)
+	logUserId := logger.Attr("id", id)
+	log.Info("adding password to user", logUserId)
 	passwordHash, err := bcrypt.GenerateFromPassword(password, 12)
 	if err != nil {
-		log.Error("failed to generate password hash", logger.Err(err), logUserNickname)
+		log.Error("failed to generate password hash", logger.Err(err), logUserId)
 		return errs.NewAppError(op, err)
 	}
-	if err := us.userRepository.SetPassword(ctx, nickname, passwordHash); err != nil {
-		log.Error("failed to set user's password", logger.Err(err), logUserNickname)
+	if err := us.userRepository.SetPassword(ctx, id, passwordHash); err != nil {
+		log.Error("failed to set user's password", logger.Err(err), logUserId)
 		return errs.NewAppError(op, err)
 	}
-	log.Info("user's password setted successfully", logUserNickname)
+	log.Info("user's password setted successfully", logUserId)
 	return nil
 }
 
-// func (us *userService) IsNew(ctx context.Context, nickname string, key ssh.PublicKey) (bool, error) {
-// 	op := "userService.IsNew"
-
-// 	log := us.logger.AddOp(op)
-// 	logUserNickname := logger.Attr("nickname", nickname)
-// 	log.Info("user is new checking", logUserNickname)
-
-// 	keyBytes := ssh.MarshalAuthorizedKey(key)
-// 	keyString := strings.TrimSpace(string(keyBytes))
-
-// 	res, err := us.userRepository.ExistenceCheck(ctx, nickname, keyString)
-// 	if err != nil {
-// 		log.Error("failed to check user's existance", logUserNickname, logger.Err(err))
-// 		return false, errs.NewAppError(op, err)
-// 	}
-
-// 	log.Info("user's existance checked successfully", logUserNickname)
-
-// 	return res, nil
-// }
-
-func (us *userService) GetUser(ctx context.Context, nickname string) (*models.User, error) {
-	op := "userService.GetUser"
+func (us *userService) GetUserByNickname(ctx context.Context, nickname string) (*models.User, error) {
+	op := "userService.GetUserByNickname"
 
 	log := us.logger.AddOp(op)
 	logUserNickname := logger.Attr("nickname", nickname)
@@ -132,41 +113,41 @@ func (us *userService) GetUser(ctx context.Context, nickname string) (*models.Us
 	return user, nil
 }
 
-func (us *userService) DeleteUser(ctx context.Context, nickname string) error {
+func (us *userService) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	op := "userService.DeleteUser"
 
 	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", nickname)
-	log.Info("deleting user", logUserNickname)
+	logUserId := logger.Attr("id", id)
+	log.Info("deleting user", logUserId)
 
-	if err := us.userRepository.Delete(ctx, nickname); err != nil {
-		log.Error("failed to delete user", logUserNickname, logger.Err(err))
+	if err := us.userRepository.Delete(ctx, id); err != nil {
+		log.Error("failed to delete user", logUserId, logger.Err(err))
 		return errs.NewAppError(op, err)
 	}
 
-	log.Info("user deleted successfully", logUserNickname)
+	log.Info("user deleted successfully", logUserId)
 
 	return nil
 }
 
-func (us *userService) SetNewKey(ctx context.Context, nickname string, key []byte) error {
+func (us *userService) SetNewKey(ctx context.Context, id uuid.UUID, key []byte) error {
 	op := "userService.SetNewKey"
 	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", nickname)
-	log.Info("setting new user's key", logUserNickname)
+	logUserId := logger.Attr("id", id)
+	log.Info("setting new user's key", logUserId)
 
 	keyString := strings.TrimSpace(string(key))
 	fingerprint, err := utils.GenerateFingerprint([]byte(key))
 	if err != nil {
-		log.Error("failed to generatge fingerprint", logger.Err(err), logUserNickname)
+		log.Error("failed to generatge fingerprint", logger.Err(err), logUserId)
 		return errs.NewAppError(op, err)
 	}
-	if err := us.userRepository.NewKeys(ctx, nickname, keyString, fingerprint); err != nil {
-		log.Error("failed to set new key to user", logger.Err(err), logUserNickname)
+	if err := us.userRepository.NewKeys(ctx, id, keyString, fingerprint); err != nil {
+		log.Error("failed to set new key to user", logger.Err(err), logUserId)
 		return errs.NewAppError(op, err)
 	}
 
-	log.Info("new key setted successfylly", logUserNickname)
+	log.Info("new key setted successfylly", logUserId)
 
 	return nil
 }
@@ -179,11 +160,11 @@ func (us *userService) CheckPassword(ctx context.Context, nickname string, passw
 	userPassword, id, err := us.userRepository.GetPassword(ctx, nickname)
 	if err != nil {
 		log.Error("failed to get user's password", logger.Err(err), logUserNickname)
-		return uuid.UUID{}, errs.NewAppError(op, err)
+		return uuid.Nil, errs.NewAppError(op, err)
 	}
 	if err := bcrypt.CompareHashAndPassword(userPassword, password); err != nil {
 		log.Error("passwords are not equal", logger.Err(err), logUserNickname)
-		return uuid.UUID{}, errs.NewAppError(op, err)
+		return uuid.Nil, errs.NewAppError(op, err)
 	}
 	return id, nil
 }
@@ -192,16 +173,16 @@ func (us *userService) GetPersonalData(ctx context.Context, userID uuid.UUID) (*
 	op := "userService.GetPersonalData"
 
 	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", userID)
-	log.Info("getting user's personal data", logUserNickname)
+	logUserId := logger.Attr("nickname", userID)
+	log.Info("getting user's personal data", logUserId)
 
 	personalData, err := us.userRepository.GetPersonalData(ctx, userID)
 	if err != nil {
-		log.Error("failed to get user's personal data", logUserNickname, logger.Err(err))
+		log.Error("failed to get user's personal data", logUserId, logger.Err(err))
 		return nil, errs.NewAppError(op, err)
 	}
 
-	log.Info("user's personal data got successfully", logUserNickname)
+	log.Info("user's personal data got successfully", logUserId)
 
 	return personalData, nil
 }
@@ -210,16 +191,33 @@ func (us *userService) GetUsersFriends(ctx context.Context, userID uuid.UUID) ([
 	op := "userService.GetUsersFriends"
 
 	log := us.logger.AddOp(op)
-	logUserNickname := logger.Attr("nickname", userID)
-	log.Info("getting user's friends", logUserNickname)
+	logUserId := logger.Attr("id", userID)
+	log.Info("getting user's friends", logUserId)
 
 	friends, err := us.userRepository.GetUsersFriends(ctx, userID)
 	if err != nil {
-		log.Error("failed to get user's friends", logUserNickname, logger.Err(err))
+		log.Error("failed to get user's friends", logUserId, logger.Err(err))
 		return nil, errs.NewAppError(op, err)
 	}
 
-	log.Info("user's friends got successfully", logUserNickname)
+	log.Info("user's friends got successfully", logUserId)
 
 	return friends, nil
+}
+
+func (us *userService) SetTagline(ctx context.Context, userID uuid.UUID, tagline string) error {
+	op := "userService.SetTagline"
+
+	log := us.logger.AddOp(op)
+	logUserId := logger.Attr("id", userID)
+	log.Info("setting user's tagline", logUserId)
+
+	if err := us.userRepository.SetTalgile(ctx, userID, tagline); err != nil {
+		log.Error("failed to set tagline", logUserId, logger.Err(err))
+		return errs.NewAppError(op, err)
+	}
+
+	log.Info("user's tagline setted successed", logUserId)
+
+	return nil
 }

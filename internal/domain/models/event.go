@@ -1,6 +1,10 @@
 package models
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/google/uuid"
+)
 
 const (
 	NEW_FRIEND_REQ = iota
@@ -14,6 +18,7 @@ const (
 	FRIEND_CONNECTIONS
 	UPDATE_HARD_DENOISE
 	UPDATE_SOFT_DENOISE
+	UPDATE_TAGLINE
 )
 
 type Event struct {
@@ -22,73 +27,78 @@ type Event struct {
 }
 
 type FriendConnsData struct {
-	Nickname string   `json:"nickname"`
-	Connects []string `json:"connects"`
+	Id       uuid.UUID `json:"id"`
+	Connects []string  `json:"connects"`
 }
 
 type UsersHardDenoiseData struct {
-	Nickname string `json:"nickname"`
-	State    bool   `json:"state"`
+	Id    uuid.UUID `json:"id"`
+	State bool      `json:"state"`
 }
 
 type UsersSoftDenoiseData struct {
-	Nickname string `json:"nickname"`
-	State    bool   `json:"state"`
+	Id    uuid.UUID `json:"id"`
+	State bool      `json:"state"`
 }
 
-func NewFriendEvent(nickname []byte) Event {
+type TaglineData struct {
+	Id      uuid.UUID `json:"id"`
+	Tagline string    `json:"tagline"`
+}
+
+func NewFriendEvent(fp []byte) Event {
 	return Event{
 		Type: NEW_FRIEND_REQ,
-		Data: nickname,
+		Data: fp,
 	}
 }
 
-func AcceptFriendEvent(nickname []byte) Event {
+func AcceptFriendEvent(fp []byte) Event {
 	return Event{
 		Type: ACCEPT_FRIEND,
-		Data: nickname,
+		Data: fp,
 	}
 }
 
-func DenyFriendEvent(nickname []byte) Event {
+func DenyFriendEvent(fp []byte) Event {
 	return Event{
 		Type: DENY_FRIEND,
-		Data: nickname,
+		Data: fp,
 	}
 }
 
-func DeleteFriendEvent(nickname []byte) Event {
+func DeleteFriendEvent(fp []byte) Event {
 	return Event{
 		Type: DELETE_FRIEND,
-		Data: nickname,
+		Data: fp,
 	}
 }
 
-func BlockUserEvent(nickname []byte) Event {
+func BlockUserEvent(fp []byte) Event {
 	return Event{
 		Type: BLOCK_USER,
-		Data: nickname,
+		Data: fp,
 	}
 }
 
-func UnblockUserEvent(nickname []byte) Event {
+func UnblockUserEvent(fp []byte) Event {
 	return Event{
 		Type: UNBLOCK_USER,
-		Data: nickname,
+		Data: fp,
 	}
 }
 
-func FriendOnlineEvent(fcd []byte) Event {
+func FriendOnlineEvent(id []byte) Event {
 	return Event{
 		Type: FRIEND_ONLINE,
-		Data: fcd,
+		Data: id,
 	}
 }
 
-func FriendOfflineEvent(nickname []byte) Event {
+func FriendOfflineEvent(id []byte) Event {
 	return Event{
 		Type: FRIEND_OFFLINE,
-		Data: nickname,
+		Data: id,
 	}
 }
 
@@ -106,8 +116,19 @@ func UpdateSoftDenoiseEvent(usdd []byte) Event {
 	}
 }
 
-func MarshNick(nick string) ([]byte, error) {
-	data, err := json.Marshal(nick)
+func UpdateTaglineEvent(td []byte) Event {
+	return Event{
+		Type: UPDATE_TAGLINE,
+		Data: td,
+	}
+}
+
+func MarshFP(id uuid.UUID, nickname string) ([]byte, error) {
+	fp := FriendPersonal{
+		ID:       id,
+		Nickname: nickname,
+	}
+	data, err := json.Marshal(fp)
 	if err != nil {
 		return nil, err
 	}
@@ -115,9 +136,24 @@ func MarshNick(nick string) ([]byte, error) {
 	return data, nil
 }
 
-// func FriendConnectionsEvent(fcd []byte) Event {
-// 	return Event{
-// 		Type: FRIEND_CONNECTIONS,
-// 		Data: fcd,
-// 	}
-// }
+func MarshTD(id uuid.UUID, tagline string) ([]byte, error) {
+	td := TaglineData{
+		Id:      id,
+		Tagline: tagline,
+	}
+	data, err := json.Marshal(td)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func MarshID(id uuid.UUID) ([]byte, error) {
+	data, err := json.Marshal(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}

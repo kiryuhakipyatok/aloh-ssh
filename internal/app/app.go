@@ -46,7 +46,6 @@ func Run() {
 		FriendshipService: friendshipService,
 		UserService:       userService,
 		BlockedService:    blockedService,
-		Log:               log,
 	})
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.Timeout)

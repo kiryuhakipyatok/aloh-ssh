@@ -3,7 +3,6 @@ package server
 import (
 	"aloh-ssh/internal/config"
 	"aloh-ssh/internal/domain/services"
-	"aloh-ssh/pkg/logger"
 	"context"
 	"errors"
 	"fmt"
@@ -18,7 +17,7 @@ type Server struct {
 	friendshipSerive services.FriendshipService
 	blockedService   services.BlockedService
 	cfg              config.Server
-	log              *logger.Logger
+	//log              *logger.Logger
 }
 
 const (
@@ -33,7 +32,7 @@ type NewServerSetup struct {
 	UserService       services.UserService
 	FriendshipService services.FriendshipService
 	BlockedService    services.BlockedService
-	Log               *logger.Logger
+	//Log               *logger.Logger
 }
 
 func NewServer(nss NewServerSetup) *Server {
@@ -44,7 +43,7 @@ func NewServer(nss NewServerSetup) *Server {
 		friendshipSerive: nss.FriendshipService,
 		blockedService:   nss.BlockedService,
 		cfg:              nss.Cfg,
-		log:              nss.Log,
+		//log:              nss.Log,
 	}
 	server := &ssh.Server{
 		Addr:             addr,
@@ -60,6 +59,7 @@ func NewServer(nss NewServerSetup) *Server {
 			"block-user":    s.blockUserRequest(),
 			"unblock-user":  s.unblockUserRequest(),
 			"conns-update":  s.updateCurOnlineRequest(),
+			"set-tagline":   s.setTaglineRequest(),
 		},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
 			"event-channel": s.proccessEventChannel,
@@ -73,107 +73,63 @@ func NewServer(nss NewServerSetup) *Server {
 }
 
 func (s *Server) passwordHandler() ssh.PasswordHandler {
-	op := "server.passwordHandler"
-	log := s.log.AddOp(op)
+	//op := "server.passwordHandler"
+	//log := s.log.AddOp(op)
 	return func(ctx ssh.Context, password string) bool {
 		if ctx.ClientVersion() != LOGIN {
 			return false
 		}
 		nickname := ctx.User()
-		logUserNickname := logger.Attr("nickname", nickname)
+		//logUserNickname := logger.Attr("nickname", nickname)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
 		id, err := s.userService.CheckPassword(appCtx, nickname, []byte(password))
 		if err != nil {
-			log.Error("failed to check password", logger.Err(err), logUserNickname)
+			//log.Error("failed to check password", logger.Err(err), logUserNickname)
 			return false
 		}
 		ctx.SetValue("userID", id)
-		// user, err := s.userService.GetUser(ctx, nickname)
-		// if err != nil {
-		// 	log.Error("failed to get user", logger.Err(err), logUserNickname)
-		// 	return false
-		// }
-		// for _, friend := range user.PersonalData.Friends {
-		// 	go func() {
-		// 		friendSession, err := s.sessionService.GetSession(appCtx, friend.ID)
-		// 		if err != nil {
-		// 			if errors.Is(err, errs.ErrNotFoundBase) {
-		// 				log.Info("friend is offline", logUserNickname)
-		// 			} else {
-		// 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-		// 			}
-		// 			return
-		// 		}
-		// 		friendOnlineEvent := models.FriendOnlineEvent(nickname)
-		// 		select {
-		// 		case friendSession.EventsChan <- friendOnlineEvent:
-		// 		default:
-		// 		}
 
-		// 	}()
-		// }
 		return true
 	}
 }
 
 func (s *Server) publicKeyHandler() ssh.PublicKeyHandler {
-	op := "server.publicKeyHandler"
-	log := s.log.AddOp(op)
+	//op := "server.publicKeyHandler"
+	//log := s.log.AddOp(op)
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
 		nickname := ctx.User()
-		logUserNickname := logger.Attr("nickname", nickname)
-		log.Info("new connect", logUserNickname)
+		//logUserNickname := logger.Attr("nickname", nickname)
+		//log.Info("new connect", logUserNickname)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
 		switch ctx.ClientVersion() {
 		case REGISTER:
 			id, err := s.userService.NewUser(appCtx, nickname, key)
 			if err != nil {
-				log.Error("failed to create new user", logger.Err(err), logUserNickname)
+				//log.Error("failed to create new user", logger.Err(err), logUserNickname)
 				return false
 			}
 			ctx.SetValue("userID", id)
 			if _, err := s.sessionService.NewSession(appCtx, id); err != nil {
-				log.Error("failed to create session", logger.Err(err), logUserNickname)
+				//log.Error("failed to create session", logger.Err(err), logUserNickname)
 				return false
 			}
 			return true
 		default:
-			user, err := s.userService.GetUser(ctx, nickname)
+			user, err := s.userService.GetUserByNickname(ctx, nickname)
 			if err != nil {
-				log.Error("failed to get user", logger.Err(err), logUserNickname)
+				//log.Error("failed to get user", logger.Err(err), logUserNickname)
 				return false
 			}
 			userKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(user.Key))
 			if err != nil {
-				log.Error("failed to parse user's key", logger.Err(err), logUserNickname)
+				//log.Error("failed to parse user's key", logger.Err(err), logUserNickname)
 				return false
 			}
 			equal := ssh.KeysEqual(userKey, key)
 			if equal {
 				ctx.SetValue("userID", user.ID)
-
-				// for _, friend := range user.PersonalData.Friends {
-				// 	go func() {
-				// 		friendSession, err := s.sessionService.GetSession(appCtx, friend.ID)
-				// 		if err != nil {
-				// 			if errors.Is(err, errs.ErrNotFoundBase) {
-				// 				log.Info("friend is offline", logUserNickname)
-				// 			} else {
-				// 				log.Error("failed to get friend's session", logger.Err(err), logUserNickname)
-				// 			}
-				// 			return
-				// 		}
-				// 		friendOnlineEvent := models.FriendOnlineEvent(nickname)
-				// 		select {
-				// 		case friendSession.EventsChan <- friendOnlineEvent:
-				// 			log.Info("online event sended successfully", logUserNickname)
-				// 		default:
-				// 		}
-
-				// 	}()
-				// }
 			}
 			return ssh.KeysEqual(userKey, key)
 		}

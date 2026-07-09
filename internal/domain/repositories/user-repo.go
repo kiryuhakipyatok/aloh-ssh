@@ -12,13 +12,14 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, user *models.User) error
-	Delete(ctx context.Context, nickname string) error
+	Delete(ctx context.Context, id uuid.UUID) error
 	GetUser(ctx context.Context, nickname string) (*models.User, error)
-	SetPassword(ctx context.Context, nickname string, password []byte) error
-	NewKeys(ctx context.Context, nickname string, key, fingerprint string) error
+	SetPassword(ctx context.Context, id uuid.UUID, password []byte) error
+	NewKeys(ctx context.Context, id uuid.UUID, key, fingerprint string) error
 	GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error)
-	GetPersonalData(ctx context.Context, userId uuid.UUID) (*models.PersonalData, error)
-	GetUsersFriends(ctx context.Context, userId uuid.UUID) ([]models.Friend, error)
+	GetPersonalData(ctx context.Context, id uuid.UUID) (*models.PersonalData, error)
+	GetUsersFriends(ctx context.Context, id uuid.UUID) ([]models.Friend, error)
+	SetTalgile(ctx context.Context, id uuid.UUID, tagline string) error
 }
 
 type userRepository struct {
@@ -33,8 +34,10 @@ func NewUserRepository(ur *storage.Storage) UserRepository {
 
 func (ur *userRepository) Create(ctx context.Context, user *models.User) error {
 	op := "userRepository.Create"
-	query := "INSERT INTO users (id, nickname, password, key, fingerprint, register_time) VALUES ($1, $2, $3, $4, $5, $6)"
-	res, err := ur.storage.Pool.Exec(ctx, query, user.ID, user.PersonalData.Nickname, user.Password, user.Key, user.Fingerprint, user.PersonalData.RegisterTime)
+	query := "INSERT INTO users (id, nickname, password, tagline, key, fingerprint, register_time) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	res, err := ur.storage.Pool.Exec(ctx, query,
+		user.ID, user.PersonalData.Nickname, user.Password, user.PersonalData.Tagline,
+		user.Key, user.Fingerprint, user.PersonalData.RegisterTime)
 	if err != nil {
 		if storage.ErrorAlreadyExists(err) {
 			return errs.ErrAlreadyExists(op, err)
@@ -47,10 +50,10 @@ func (ur *userRepository) Create(ctx context.Context, user *models.User) error {
 	return nil
 }
 
-func (ur *userRepository) Delete(ctx context.Context, nickname string) error {
+func (ur *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	op := "userRepository.Delete"
-	query := "DELETE FROM users WHERE nickname = $1 AND register_time = $2"
-	res, err := ur.storage.Pool.Exec(ctx, query, nickname)
+	query := "DELETE FROM users WHERE id = $1"
+	res, err := ur.storage.Pool.Exec(ctx, query, id)
 	if err != nil {
 		return errs.NewAppError(op, err)
 	}
@@ -92,7 +95,7 @@ func (ur *userRepository) GetUser(ctx context.Context, nickname string) (*models
 	return &user, nil
 }
 
-func (ur *userRepository) GetUsersFriends(ctx context.Context, userId uuid.UUID) ([]models.Friend, error) {
+func (ur *userRepository) GetUsersFriends(ctx context.Context, id uuid.UUID) ([]models.Friend, error) {
 	op := "userRepository.GetActiveFriends"
 	query := `
 		SELECT u.id, u.nickname
@@ -100,7 +103,7 @@ func (ur *userRepository) GetUsersFriends(ctx context.Context, userId uuid.UUID)
 		JOIN users u ON u.id = (CASE WHEN f.user_id1 = $1 THEN f.user_id2 ELSE f.user_id1 END)
 		WHERE (f.user_id1 = $1 OR f.user_id2 = $1) AND f.status = 'active'
 	`
-	rows, err := ur.storage.Pool.Query(ctx, query, userId)
+	rows, err := ur.storage.Pool.Query(ctx, query, id)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound()) {
 			return nil, errs.ErrNotFound(op)
@@ -125,7 +128,7 @@ func (ur *userRepository) GetUsersFriends(ctx context.Context, userId uuid.UUID)
 	return friends, nil
 }
 
-func (ur *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID) (*models.PersonalData, error) {
+func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*models.PersonalData, error) {
 	op := "userRepository.GetPersonalData"
 	query := `SELECT u.nickname, u.register_time, 
     		  COALESCE((
@@ -150,7 +153,7 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID)
 			  ) AS blocked_users
 			   FROM users u WHERE u.id = $1`
 	pd := models.PersonalData{}
-	if err := ur.storage.Pool.QueryRow(ctx, query, userId).Scan(
+	if err := ur.storage.Pool.QueryRow(ctx, query, id).Scan(
 		&pd.Nickname,
 		&pd.RegisterTime,
 		&pd.FriendsReqs,
@@ -165,10 +168,10 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, userId uuid.UUID)
 	return &pd, nil
 }
 
-func (ur *userRepository) SetPassword(ctx context.Context, nickname string, password []byte) error {
+func (ur *userRepository) SetPassword(ctx context.Context, id uuid.UUID, password []byte) error {
 	op := "userRepository.Create"
-	query := "UPDATE users SET password = $1 WHERE nickname = $2"
-	res, err := ur.storage.Pool.Exec(ctx, query, password, nickname)
+	query := "UPDATE users SET password = $1 WHERE id = $2"
+	res, err := ur.storage.Pool.Exec(ctx, query, password, id)
 	if err != nil {
 		return errs.NewAppError(op, err)
 	}
@@ -178,10 +181,10 @@ func (ur *userRepository) SetPassword(ctx context.Context, nickname string, pass
 	return nil
 }
 
-func (ur *userRepository) NewKeys(ctx context.Context, nickname string, key, fingerprint string) error {
+func (ur *userRepository) NewKeys(ctx context.Context, id uuid.UUID, key, fingerprint string) error {
 	op := "userRepository.NewKeys"
-	query := "UPDATE users SET key=$1, fingerprint=$2 WHERE nickname=$3"
-	res, err := ur.storage.Pool.Exec(ctx, query, key, fingerprint, nickname)
+	query := "UPDATE users SET key=$1, fingerprint=$2 WHERE id=$3"
+	res, err := ur.storage.Pool.Exec(ctx, query, key, fingerprint, id)
 	if err != nil {
 		return errs.NewAppError(op, err)
 	}
@@ -208,4 +211,17 @@ func (ur *userRepository) GetPassword(ctx context.Context, nickname string) ([]b
 		return nil, uuid.UUID{}, errs.NewAppError(op, err)
 	}
 	return res.pswrd, res.id, nil
+}
+
+func (ur *userRepository) SetTalgile(ctx context.Context, id uuid.UUID, tagline string) error {
+	op := "userRepository.SetTalgile"
+	query := "UPDATE users SET tagline=$1 WHERE id=$2"
+	res, err := ur.storage.Pool.Exec(ctx, query, tagline, id)
+	if err != nil {
+		return errs.NewAppError(op, err)
+	}
+	if res.RowsAffected() == 0 {
+		return errs.ErrNotFound(op)
+	}
+	return nil
 }
