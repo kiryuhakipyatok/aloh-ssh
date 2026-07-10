@@ -27,8 +27,8 @@ type Event struct {
 }
 
 type FriendConnsData struct {
-	Id       uuid.UUID   `json:"id"`
-	Connects []uuid.UUID `json:"connects"`
+	Id       uuid.UUID `json:"id"`
+	Connects []string  `json:"connects"`
 }
 
 type UsersHardDenoiseData struct {
