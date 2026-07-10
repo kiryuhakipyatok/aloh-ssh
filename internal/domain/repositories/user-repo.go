@@ -36,7 +36,7 @@ func (ur *userRepository) Create(ctx context.Context, user *models.User) error {
 	op := "userRepository.Create"
 	query := "INSERT INTO users (id, nickname, password, tagline, key, fingerprint, register_time) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 	res, err := ur.storage.Pool.Exec(ctx, query,
-		user.ID, user.PersonalData.Nickname, user.Password, user.PersonalData.Tagline,
+		user.PersonalData.ID, user.PersonalData.Nickname, user.Password, user.PersonalData.Tagline,
 		user.Key, user.Fingerprint, user.PersonalData.RegisterTime)
 	if err != nil {
 		if storage.ErrorAlreadyExists(err) {
@@ -81,7 +81,7 @@ func (ur *userRepository) GetUser(ctx context.Context, nickname string) (*models
 	query := `SELECT id, nickname, key, fingerprint, register_time FROM users WHERE nickname = $1`
 	var user models.User
 	if err := ur.storage.Pool.QueryRow(ctx, query, nickname).Scan(
-		&user.ID,
+		&user.PersonalData.ID,
 		&user.PersonalData.Nickname,
 		&user.Key,
 		&user.Fingerprint,

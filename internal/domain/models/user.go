@@ -7,7 +7,6 @@ import (
 )
 
 type User struct {
-	ID           uuid.UUID    `json:"id"`
 	PersonalData PersonalData `json:"personalData"`
 	Key          string       `json:"key"`
 	Fingerprint  string       `json:"fingerprint"`
@@ -15,6 +14,7 @@ type User struct {
 }
 
 type PersonalData struct {
+	ID           uuid.UUID   `json:"id"`
 	Nickname     string      `json:"nickname"`
 	Tagline      string      `json:"tagline"`
 	RegisterTime time.Time   `json:"registerTime"`

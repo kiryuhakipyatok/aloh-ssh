@@ -57,8 +57,8 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 	}
 
 	user := new(models.User{
-		ID: id,
 		PersonalData: models.PersonalData{
+			ID: id,
 			Nickname:     nickname,
 			RegisterTime: time.Now().UTC(),
 			Tagline:      "",

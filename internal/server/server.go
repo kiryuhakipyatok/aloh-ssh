@@ -129,7 +129,7 @@ func (s *Server) publicKeyHandler() ssh.PublicKeyHandler {
 			}
 			equal := ssh.KeysEqual(userKey, key)
 			if equal {
-				ctx.SetValue("userID", user.ID)
+				ctx.SetValue("userID", user.PersonalData.ID)
 			}
 			return ssh.KeysEqual(userKey, key)
 		}
