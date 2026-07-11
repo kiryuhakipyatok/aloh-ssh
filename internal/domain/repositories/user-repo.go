@@ -141,10 +141,14 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
     		  ) AS friends_reqs,
 			   COALESCE((
 				SELECT json_agg(json_build_object(
-                			'nickname', friend_resolv.nickname, 
-                			'id',  friend_resolv.id,
-							'tagline', friend_resolv.tagline
-            			))
+        					'personal', json_build_object(
+            					'id', friend_resolv.id,
+            					'nickname', friend_resolv.nickname
+        					),
+        					'appereance', json_build_object(
+            					'tagline', friend_resolv.tagline
+        					)
+    					))
 				FROM friends f JOIN users friend_resolv ON 
 				friend_resolv.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
                 WHERE (f.user_id1 = u.id OR f.user_id2 = u.id) AND f.status = 'active'), '[]'
