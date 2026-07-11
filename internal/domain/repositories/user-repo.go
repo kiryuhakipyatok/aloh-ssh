@@ -133,6 +133,7 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
 	query := `SELECT u.nickname, u.register_time, 
     		  COALESCE((
               	SELECT json_agg(json_build_object(
+							'id', sender.id,
                 			'nickname', sender.nickname, 
                 			'reqTime',  f.req_time
             			)) FROM friends f JOIN users sender ON sender.id = f.user_id1 WHERE f.user_id2 = u.id
@@ -140,12 +141,12 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
     		  ) AS friends_reqs,
 			   COALESCE((
 				SELECT json_agg(json_build_object(
-                			'nickname', friend_nicknames.nickname, 
-                			'id',  friend_nicknames.id,
-							'tagline', friend_nicknames.tagline
+                			'nickname', friend_resolv.nickname, 
+                			'id',  friend_resolv.id,
+							'tagline', friend_resolv.tagline
             			))
-				FROM friends f JOIN users friend_nicknames ON 
-				friend_nicknames.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
+				FROM friends f JOIN users friend_resolv ON 
+				friend_resolv.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
                 WHERE (f.user_id1 = u.id OR f.user_id2 = u.id) AND f.status = 'active'), '[]'
     		  ) AS active_friends,
 			   COALESCE((
@@ -156,7 +157,9 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
 			   FROM users u WHERE u.id = $1`
 	pd := models.PersonalData{}
 	if err := ur.storage.Pool.QueryRow(ctx, query, id).Scan(
+		&pd.ID,
 		&pd.Nickname,
+		&pd.Tagline,
 		&pd.RegisterTime,
 		&pd.FriendsReqs,
 		&pd.Friends,
