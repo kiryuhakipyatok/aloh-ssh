@@ -159,8 +159,8 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
 	if err := ur.storage.Pool.QueryRow(ctx, query, id).Scan(
 		&pd.ID,
 		&pd.Nickname,
-		&pd.Tagline,
 		&pd.RegisterTime,
+		&pd.Tagline,
 		&pd.FriendsReqs,
 		&pd.Friends,
 		&pd.BlockedUsers,
