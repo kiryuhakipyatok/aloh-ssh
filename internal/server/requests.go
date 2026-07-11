@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/charmbracelet/ssh"
@@ -306,17 +307,16 @@ func (s *Server) fetchPersonalRequest() ssh.RequestHandler {
 			//log.Error("failed to fetch personal data", logger.Err(err), logUserId)
 			return false, castErr(err)
 		}
-		friendsNicknames := make([]string, 0, len(personalData.Friends))
 
-		for _, f := range personalData.Friends {
-			friendsNicknames = append(friendsNicknames, f.Nickname)
-		}
-		
+		fmt.Println(personalData)
+
 		personalDataBytes, err := json.Marshal(personalData)
 		if err != nil {
 			//log.Error("failed to marshal user's personal data", logUserId, logger.Err(err))
 			return false, castErr(err)
 		}
+
+		fmt.Println(string(personalDataBytes))
 
 		//log.Info("user's personal data fetched successfully", logUserId)
 		return true, personalDataBytes
