@@ -130,7 +130,7 @@ func (ur *userRepository) GetUsersFriends(ctx context.Context, id uuid.UUID) ([]
 
 func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*models.PersonalData, error) {
 	op := "userRepository.GetPersonalData"
-	query := `SELECT u.nickname, u.register_time, 
+	query := `SELECT u.id, u.nickname, u.register_time, u.tagline,
     		  COALESCE((
               	SELECT json_agg(json_build_object(
 							'id', sender.id,
