@@ -19,7 +19,7 @@ type UserRepository interface {
 	GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error)
 	GetPersonalData(ctx context.Context, id uuid.UUID) (*models.PersonalData, error)
 	GetUsersFriends(ctx context.Context, id uuid.UUID) ([]models.Friend, error)
-	SetTalgile(ctx context.Context, id uuid.UUID, tagline string) error
+	SetTagline(ctx context.Context, id uuid.UUID, tagline string) error
 }
 
 type userRepository struct {
@@ -222,7 +222,7 @@ func (ur *userRepository) GetPassword(ctx context.Context, nickname string) ([]b
 	return res.pswrd, res.id, nil
 }
 
-func (ur *userRepository) SetTalgile(ctx context.Context, id uuid.UUID, tagline string) error {
+func (ur *userRepository) SetTagline(ctx context.Context, id uuid.UUID, tagline string) error {
 	op := "userRepository.SetTalgile"
 	query := "UPDATE users SET tagline=$1 WHERE id=$2"
 	res, err := ur.storage.Pool.Exec(ctx, query, tagline, id)

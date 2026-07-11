@@ -58,7 +58,7 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 
 	user := new(models.User{
 		PersonalData: models.PersonalData{
-			ID: id,
+			ID:           id,
 			Nickname:     nickname,
 			RegisterTime: time.Now().UTC(),
 			Tagline:      "",
@@ -211,8 +211,8 @@ func (us *userService) SetTagline(ctx context.Context, userID uuid.UUID, tagline
 	log := us.logger.AddOp(op)
 	logUserId := logger.Attr("id", userID)
 	log.Info("setting user's tagline", logUserId)
-
-	if err := us.userRepository.SetTalgile(ctx, userID, tagline); err != nil {
+	log.Info("tagline", logger.Attr("t", tagline))
+	if err := us.userRepository.SetTagline(ctx, userID, tagline); err != nil {
 		log.Error("failed to set tagline", logUserId, logger.Err(err))
 		return errs.NewAppError(op, err)
 	}
