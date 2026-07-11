@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/charmbracelet/ssh"
@@ -308,15 +307,11 @@ func (s *Server) fetchPersonalRequest() ssh.RequestHandler {
 			return false, castErr(err)
 		}
 
-		fmt.Println(personalData)
-
 		personalDataBytes, err := json.Marshal(personalData)
 		if err != nil {
 			//log.Error("failed to marshal user's personal data", logUserId, logger.Err(err))
 			return false, castErr(err)
 		}
-
-		fmt.Println(string(personalDataBytes))
 
 		//log.Info("user's personal data fetched successfully", logUserId)
 		return true, personalDataBytes
@@ -495,7 +490,7 @@ func (s *Server) setTaglineRequest() ssh.RequestHandler {
 		//log.Info("new deny friendship request", logUserId)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-		tagline := string(payload)
+		tagline := string(req.Payload)
 		if err := s.userService.SetTagline(appCtx, id, tagline); err != nil {
 			return false, castErr(err)
 		}
