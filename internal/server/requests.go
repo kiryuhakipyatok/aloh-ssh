@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/charmbracelet/ssh"
@@ -513,7 +514,7 @@ func (s *Server) setTaglineRequest() ssh.RequestHandler {
 				if err != nil {
 					return
 				}
-
+				fmt.Println(string(tdData))
 				updateTaglineEvent := models.UpdateTaglineEvent(tdData)
 				select {
 				case friendSession.EventsChan <- updateTaglineEvent:
