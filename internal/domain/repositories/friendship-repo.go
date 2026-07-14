@@ -1,16 +1,18 @@
 package repositories
 
 import (
+	"context"
+	"errors"
+	"time"
+
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/storage"
-	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
 
 type FriendshipRepository interface {
-	NewFriendRequest(ctx context.Context, userId, friendId uuid.UUID, timeReq time.Time) error
+	NewFriendRequest(ctx context.Context, userId uuid.UUID, friendNickname string, timeReq time.Time) (uuid.UUID, error)
 	AcceptFriendship(ctx context.Context, userId, friendId uuid.UUID) error
 	DenyFriendship(ctx context.Context, userId, friendId uuid.UUID) error
 	DeleteFromFriends(ctx context.Context, userId, friendId uuid.UUID) error
@@ -26,17 +28,23 @@ func NewFriendshipRepository(fr *storage.Storage) FriendshipRepository {
 	}
 }
 
-func (fr *friendshipRepository) NewFriendRequest(ctx context.Context, userId, friendId uuid.UUID, timeReq time.Time) error {
+func (fr *friendshipRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, friendNickname string, timeReq time.Time) (uuid.UUID, error) {
 	op := "friendshipRepository.NewFriendRequest"
-	query := `INSERT INTO friends (user_id1, user_id2, req_time) VALUES ($1, $2, $3)`
-	res, err := fr.storage.Pool.Exec(ctx, query, userId, friendId, timeReq)
+	query := `INSERT INTO friends f (f.user_id1, f.user_id2, f.req_time)
+			  USING users u WHERE u.nickname = $2 AND u.id != $1
+	          VALUES ($1, $2, $3) RETURNING u.id`
+	var id uuid.UUID
+	err := fr.storage.Pool.QueryRow(ctx, query, userId, friendNickname, timeReq).Scan(&id)
 	if err != nil {
-		return errs.NewAppError(op, err)
+		if storage.ErrorAlreadyExists(err) {
+			return uuid.Nil, errs.ErrAlreadyExists(op, err)
+		} else if errors.Is(err, storage.ErrNotFound()) {
+			return uuid.Nil, errs.ErrNotFound(op)
+		}
+		return uuid.Nil, errs.NewAppError(op, err)
 	}
-	if res.RowsAffected() == 0 {
-		return errs.ErrNotFound(op)
-	}
-	return nil
+
+	return id, nil
 }
 
 func (fr *friendshipRepository) AcceptFriendship(ctx context.Context, userId, friendId uuid.UUID) error {

@@ -27,8 +27,8 @@ type Event struct {
 }
 
 type FriendConnsData struct {
-	Identity Identity `json:"identity"`
-	Connects []string `json:"connects"`
+	Identity Identity   `json:"identity"`
+	Connects []Identity `json:"connects"`
 }
 
 type UsersHardDenoiseData struct {

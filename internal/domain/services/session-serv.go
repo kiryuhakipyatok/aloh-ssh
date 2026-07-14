@@ -1,12 +1,13 @@
 package services
 
 import (
+	"context"
+	"time"
+
 	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
 	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/repositories"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/logger"
-	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -38,7 +39,7 @@ func (ss *sessionService) NewSession(ctx context.Context, userID uuid.UUID) (*mo
 		UserID:          userID,
 		CreatedTime:     time.Now().UTC(),
 		EventsChan:      make(chan models.Event, 50),
-		CurrentConnects: make([]string, 0, 3),
+		CurrentConnects: make([]models.Identity, 0, 3),
 	}
 	if err := ss.sessionRepo.NewSession(ctx, session); err != nil {
 		log.Error("failed to create new session", userIDLog, logger.Err(err))

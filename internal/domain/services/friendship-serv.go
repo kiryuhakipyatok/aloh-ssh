@@ -1,17 +1,18 @@
 package services
 
 import (
+	"context"
+	"time"
+
 	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/repositories"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/logger"
-	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
 
 type FriendshipService interface {
-	NewFriend(ctx context.Context, userID, friendID uuid.UUID) error
+	NewFriend(ctx context.Context, userID uuid.UUID, friendNickname string) (uuid.UUID, error)
 	AcceptFriendship(ctx context.Context, userID, friendID uuid.UUID) error
 	DenyFriendship(ctx context.Context, userID, friendID uuid.UUID) error
 	DeleteFromFriends(ctx context.Context, userID, friendID uuid.UUID) error
@@ -29,20 +30,21 @@ func NewFriendshipService(fr repositories.FriendshipRepository, l *logger.Logger
 	}
 }
 
-func (fs *friendshipService) NewFriend(ctx context.Context, userID, friendID uuid.UUID) error {
+func (fs *friendshipService) NewFriend(ctx context.Context, userID uuid.UUID, friendNickname string) (uuid.UUID, error) {
 	op := "friendshipService.NewFriend"
 	log := fs.logger.AddOp(op)
 	logUserId := logger.Attr("id", userID)
 	log.Info("additing new friend request", logUserId)
 	t := time.Now().UTC()
-	if err := fs.friendshipRepository.NewFriendRequest(ctx, userID, friendID, t); err != nil {
+	friendId, err := fs.friendshipRepository.NewFriendRequest(ctx, userID, friendNickname, t)
+	if err != nil {
 		log.Error("failed to add new friend request", logUserId, logger.Err(err))
-		return errs.NewAppError(op, err)
+		return uuid.Nil, errs.NewAppError(op, err)
 	}
 
 	log.Info("new friend request added successfully", logUserId)
 
-	return nil
+	return friendId, nil
 }
 
 func (fs *friendshipService) AcceptFriendship(ctx context.Context, userID, friendID uuid.UUID) error {

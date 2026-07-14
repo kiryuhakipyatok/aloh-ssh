@@ -1,13 +1,14 @@
 package server
 
 import (
-	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
-	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
+
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 
 	"github.com/charmbracelet/ssh"
 	"github.com/google/uuid"
@@ -73,12 +74,9 @@ func (s *Server) newFriendRequest() ssh.RequestHandler {
 		//log.Info("new friend request", logUserId)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-		friendId, err := uuid.ParseBytes(req.Payload)
+		friendNickname := string(req.Payload)
+		friendId, err := s.friendshipSerive.NewFriend(appCtx, id, friendNickname)
 		if err != nil {
-			//log.Error("failed to parse friend id", logger.Err(err), logUserId)
-			return false, castErr(err)
-		}
-		if err := s.friendshipSerive.NewFriend(appCtx, id, friendId); err != nil {
 			//log.Error("failed to add new friend request", logger.Err(err), logUserId)
 			return false, castErr(err)
 		}
