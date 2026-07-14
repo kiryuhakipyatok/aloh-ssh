@@ -1,7 +1,7 @@
 package server
 
 import (
-	"aloh-ssh/pkg/errs"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"errors"
 )
 

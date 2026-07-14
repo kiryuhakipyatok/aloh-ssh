@@ -1,9 +1,9 @@
 package services
 
 import (
-	"aloh-ssh/internal/domain/repositories"
-	"aloh-ssh/pkg/errs"
-	"aloh-ssh/pkg/logger"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/repositories"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/logger"
 	"context"
 	"time"
 
@@ -11,8 +11,8 @@ import (
 )
 
 type BlockedService interface {
-	BlockUser(ctx context.Context, userId uuid.UUID, blockedUserId string) (uuid.UUID, error)
-	UnblockUser(ctx context.Context, userId uuid.UUID, unblockedUserNick string) error
+	BlockUser(ctx context.Context, userId uuid.UUID, blockedUserId string) (uuid.UUID, uuid.UUID, error)
+	UnblockUser(ctx context.Context, userId uuid.UUID, unblockedUserNick string) (uuid.UUID, error)
 }
 
 type blockedService struct {
@@ -27,35 +27,36 @@ func NewBlockedService(br repositories.BlockedRepository, l *logger.Logger) Bloc
 	}
 }
 
-func (bs *blockedService) BlockUser(ctx context.Context, userId uuid.UUID, blockedUserId string) (uuid.UUID, error) {
+func (bs *blockedService) BlockUser(ctx context.Context, userId uuid.UUID, blockedUserId string) (uuid.UUID, uuid.UUID, error) {
 	op := "blockedService.BlockUser"
 	log := bs.logger.AddOp(op)
 	logUserId := logger.Attr("id", blockedUserId)
 	log.Info("blocking user", logUserId)
 	t := time.Now().UTC()
-	friendId, err := bs.blockedRepository.BlockUser(ctx, userId, blockedUserId, t)
+	blockedId, friendId, err := bs.blockedRepository.BlockUser(ctx, userId, blockedUserId, t)
 	if err != nil {
 		log.Error("failed to block user", logUserId, logger.Err(err))
-		return uuid.Nil, errs.NewAppError(op, err)
+		return uuid.Nil, uuid.Nil, errs.NewAppError(op, err)
 	}
 
 	log.Info("user blocked successfully successfully", logUserId)
 
-	return friendId, nil
+	return blockedId, friendId, nil
 }
 
-func (bs *blockedService) UnblockUser(ctx context.Context, userId uuid.UUID, unblockedUserNick string) error {
+func (bs *blockedService) UnblockUser(ctx context.Context, userId uuid.UUID, unblockedUserNick string) (uuid.UUID, error) {
 	op := "blockedService.UnblockUser"
 	log := bs.logger.AddOp(op)
 	logUserId := logger.Attr("id", unblockedUserNick)
 	log.Info("unblocking user", logUserId)
 
-	if err := bs.blockedRepository.UnblockUser(ctx, userId, unblockedUserNick); err != nil {
+	id, err := bs.blockedRepository.UnblockUser(ctx, userId, unblockedUserNick)
+	if err != nil {
 		log.Error("failed to unblock user", logUserId, logger.Err(err))
-		return errs.NewAppError(op, err)
+		return uuid.Nil, errs.NewAppError(op, err)
 	}
 
 	log.Info("user unblocked successfully", logUserId)
 
-	return nil
+	return id, nil
 }

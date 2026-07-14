@@ -1,12 +1,12 @@
 package app
 
 import (
-	"aloh-ssh/internal/config"
-	"aloh-ssh/internal/domain/repositories"
-	"aloh-ssh/internal/domain/services"
-	"aloh-ssh/internal/server"
-	"aloh-ssh/pkg/logger"
-	"aloh-ssh/pkg/storage"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/config"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/repositories"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/services"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/server"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/logger"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/storage"
 	"context"
 	"os"
 	"os/signal"

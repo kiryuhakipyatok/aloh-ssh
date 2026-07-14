@@ -1,8 +1,8 @@
 package server
 
 import (
-	"aloh-ssh/internal/domain/models"
-	"aloh-ssh/pkg/errs"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"context"
 	"encoding/json"
 	"errors"
@@ -90,7 +90,7 @@ func (s *Server) newFriendRequest() ssh.RequestHandler {
 
 			return
 		}
-		fpData, err := models.MarshFP(id, nickname)
+		fpData, err := models.MarshIdentity(id, nickname)
 		if err != nil {
 			//log.Error("failed to marshal nickname", logger.Err(err), logUserId)
 			return false, castErr(err)
@@ -124,23 +124,28 @@ func (s *Server) acceptFriendshipRequest() ssh.RequestHandler {
 			//log.Error("failed to get user's session", logger.Err(err), logUserId)
 			return false, castErr(err)
 		}
-		friendId, err := uuid.ParseBytes(req.Payload)
-		if err != nil {
+		var friendIdentity models.Identity
+		if err := json.Unmarshal(req.Payload, &friendIdentity); err != nil {
 			//log.Error("failed to parse friend id", logger.Err(err), logUserId)
 			return false, castErr(err)
 		}
-		if err := s.friendshipSerive.AcceptFriendship(appCtx, id, friendId); err != nil {
+		if err := s.friendshipSerive.AcceptFriendship(appCtx, id, friendIdentity.ID); err != nil {
 			return false, castErr(err)
 			//log.Error("failed to accept friendship", logger.Err(err), logUserId)
 		}
 
-		friendSession, err := s.sessionService.GetSession(appCtx, friendId)
+		friendSession, err := s.sessionService.GetSession(appCtx, friendIdentity.ID)
 		if err != nil {
 			return
 		}
 
+		userIdentity := models.Identity{
+			ID:       id,
+			Nickname: nickname,
+		}
+
 		userFcd := models.FriendConnsData{
-			Id:       id,
+			Identity: userIdentity,
 			Connects: userSession.CurrentConnects,
 		}
 		userFcdBytes, err := json.Marshal(userFcd)
@@ -150,7 +155,7 @@ func (s *Server) acceptFriendshipRequest() ssh.RequestHandler {
 		}
 
 		friendFcd := models.FriendConnsData{
-			Id:       friendId,
+			Identity: friendIdentity,
 			Connects: friendSession.CurrentConnects,
 		}
 		friendFcdBytes, err := json.Marshal(friendFcd)
@@ -159,7 +164,7 @@ func (s *Server) acceptFriendshipRequest() ssh.RequestHandler {
 			return
 		}
 
-		dataFP, err := models.MarshFP(id, nickname)
+		dataIden, err := models.MarshIdentity(id, nickname)
 		if err != nil {
 			//log.Error("failed to marshak nickname", logger.Err(err), logUserId)
 			return false, castErr(err)
@@ -171,7 +176,7 @@ func (s *Server) acceptFriendshipRequest() ssh.RequestHandler {
 		default:
 		}
 
-		newFriendEvent := models.AcceptFriendEvent(dataFP)
+		newFriendEvent := models.AcceptFriendEvent(dataIden)
 		select {
 		case friendSession.EventsChan <- newFriendEvent:
 		default:
@@ -243,7 +248,7 @@ func (s *Server) deleteFromFriendsRequest() ssh.RequestHandler {
 			//log.Error("failed to get user's session", logger.Err(err), logUserId)
 			return false, castErr(err)
 		}
-		fpData, err := models.MarshFP(id, nickname)
+		fpData, err := models.MarshIdentity(id, nickname)
 		if err != nil {
 			//log.Error("failed to marshal id", logger.Err(err), logUserId)
 			return false, castErr(err)
@@ -334,7 +339,7 @@ func (s *Server) blockUserRequest() ssh.RequestHandler {
 		defer cancel()
 
 		blockedNickname := string(req.Payload)
-		friendId, err := s.blockedService.BlockUser(appCtx, id, blockedNickname)
+		blockedId, friendId, err := s.blockedService.BlockUser(appCtx, id, blockedNickname)
 		if err != nil {
 			//	log.Error("failed to block user", logger.Err(err), logUserId)
 			return false, castErr(err)
@@ -368,12 +373,12 @@ func (s *Server) blockUserRequest() ssh.RequestHandler {
 				//log.Error("failed to marshal nickname", logger.Err(err), logUserId)
 				return false, castErr(err)
 			}
-			dataFP, err := models.MarshFP(id, nickname)
+			dataIden, err := models.MarshIdentity(id, nickname)
 			if err != nil {
 				//log.Error("failed to marshal nickname", logger.Err(err), logUserId)
 				return false, castErr(err)
 			}
-			blockFriendEvent := models.BlockUserEvent(dataFP)
+			blockFriendEvent := models.BlockUserEvent(dataIden)
 			select {
 			case friendSession.EventsChan <- blockFriendEvent:
 			default:
@@ -387,8 +392,14 @@ func (s *Server) blockUserRequest() ssh.RequestHandler {
 
 		}
 
+		blockedIdBytes, err := json.Marshal(blockedId)
+		if err != nil {
+			//log.Error("failed to marshal user's personal data", logUserId, logger.Err(err))
+			return false, castErr(err)
+		}
+
 		//log.Info("user blocked successfully", logUserId)
-		return true, nil
+		return true, blockedIdBytes
 	}
 }
 
@@ -405,13 +416,20 @@ func (s *Server) unblockUserRequest() ssh.RequestHandler {
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
 		unblockedNick := string(req.Payload)
-		if err := s.blockedService.UnblockUser(appCtx, id, unblockedNick); err != nil {
+		unblockedId, err := s.blockedService.UnblockUser(appCtx, id, unblockedNick)
+		if err != nil {
 			//log.Error("failed to unblock user", logger.Err(err), logUserId)
 			return false, castErr(err)
 		}
 
+		unblockedIdBytes, err := json.Marshal(unblockedId)
+		if err != nil {
+			//log.Error("failed to marshal user's personal data", logUserId, logger.Err(err))
+			return false, castErr(err)
+		}
+
 		//log.Info("user unblocked successfully", logUserId)
-		return true, nil
+		return true, unblockedIdBytes
 	}
 }
 
@@ -419,6 +437,7 @@ func (s *Server) updateCurOnlineRequest() ssh.RequestHandler {
 	//op := "server.updateCurOnlineRequest"
 	//log := s.log.AddOp(op)
 	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+		nickname := ctx.User()
 		id, ok := ctx.Value("userID").(uuid.UUID)
 		if !ok {
 			return false, castErr(errs.ErrInvalidTypeBase)
@@ -444,8 +463,12 @@ func (s *Server) updateCurOnlineRequest() ssh.RequestHandler {
 			//log.Error("failed to get user's friends", logger.Err(err), logUserId)
 			return false, castErr(err)
 		}
+		userIdentity := models.Identity{
+			ID:       id,
+			Nickname: nickname,
+		}
 		fcd := models.FriendConnsData{
-			Id:       id,
+			Identity: userIdentity,
 			Connects: userSession.CurrentConnects,
 		}
 		fcdBytes, err := json.Marshal(fcd)
@@ -483,6 +506,7 @@ func (s *Server) setTaglineRequest() ssh.RequestHandler {
 	//op := "server.denyFriendshipRequest"
 	//log := s.log.AddOp(op)
 	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+		nickname := ctx.User()
 		id, ok := ctx.Value("userID").(uuid.UUID)
 		if !ok {
 			return false, castErr(errs.ErrInvalidTypeBase)
@@ -502,7 +526,7 @@ func (s *Server) setTaglineRequest() ssh.RequestHandler {
 			return false, castErr(err)
 		}
 
-		tdData, err := models.MarshTD(id, tagline)
+		tdData, err := models.MarshTD(id, nickname, tagline)
 		if err != nil {
 			return false, castErr(err)
 		}

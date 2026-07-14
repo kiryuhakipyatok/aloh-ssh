@@ -1,4 +1,4 @@
-module aloh-ssh
+module github.com/kiryuhakipyatok/aloh-ssh
 
 go 1.26.0
 

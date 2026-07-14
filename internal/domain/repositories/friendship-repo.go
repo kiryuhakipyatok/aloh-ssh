@@ -1,8 +1,8 @@
 package repositories
 
 import (
-	"aloh-ssh/pkg/errs"
-	"aloh-ssh/pkg/storage"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/storage"
 	"context"
 	"time"
 

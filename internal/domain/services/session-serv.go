@@ -1,10 +1,10 @@
 package services
 
 import (
-	"aloh-ssh/internal/domain/models"
-	"aloh-ssh/internal/domain/repositories"
-	"aloh-ssh/pkg/errs"
-	"aloh-ssh/pkg/logger"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/repositories"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/logger"
 	"context"
 	"time"
 

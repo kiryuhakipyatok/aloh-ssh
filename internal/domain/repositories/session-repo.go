@@ -1,8 +1,8 @@
 package repositories
 
 import (
-	"aloh-ssh/internal/domain/models"
-	"aloh-ssh/pkg/errs"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"context"
 	"sync"
 

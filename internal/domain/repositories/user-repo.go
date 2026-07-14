@@ -1,9 +1,9 @@
 package repositories
 
 import (
-	"aloh-ssh/internal/domain/models"
-	"aloh-ssh/pkg/errs"
-	"aloh-ssh/pkg/storage"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/storage"
 	"context"
 	"errors"
 
@@ -36,7 +36,7 @@ func (ur *userRepository) Create(ctx context.Context, user *models.User) error {
 	op := "userRepository.Create"
 	query := "INSERT INTO users (id, nickname, password, tagline, key, fingerprint, register_time) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 	res, err := ur.storage.Pool.Exec(ctx, query,
-		user.PersonalData.ID, user.PersonalData.Nickname, user.Password, user.PersonalData.Tagline,
+		user.PersonalData.Identity.ID, user.PersonalData.Identity.Nickname, user.Password, user.PersonalData.Tagline,
 		user.Key, user.Fingerprint, user.PersonalData.RegisterTime)
 	if err != nil {
 		if storage.ErrorAlreadyExists(err) {
@@ -81,8 +81,8 @@ func (ur *userRepository) GetUser(ctx context.Context, nickname string) (*models
 	query := `SELECT id, nickname, key, fingerprint, register_time FROM users WHERE nickname = $1`
 	var user models.User
 	if err := ur.storage.Pool.QueryRow(ctx, query, nickname).Scan(
-		&user.PersonalData.ID,
-		&user.PersonalData.Nickname,
+		&user.PersonalData.Identity.ID,
+		&user.PersonalData.Identity.Nickname,
 		&user.Key,
 		&user.Fingerprint,
 		&user.PersonalData.RegisterTime,
@@ -133,15 +133,17 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
 	query := `SELECT u.id, u.nickname, u.register_time, u.tagline,
     		  COALESCE((
               	SELECT json_agg(json_build_object(
-							'id', sender.id,
-                			'nickname', sender.nickname, 
+							'identity', json_build_object(
+            					'id', sender.id,
+            					'nickname', sender.nickname
+        					),
                 			'reqTime',  f.req_time
             			)) FROM friends f JOIN users sender ON sender.id = f.user_id1 WHERE f.user_id2 = u.id
 						AND f.status = 'pending'), '[]'
     		  ) AS friends_reqs,
 			   COALESCE((
 				SELECT json_agg(json_build_object(
-        					'personal', json_build_object(
+        					'identity', json_build_object(
             					'id', friend_resolv.id,
             					'nickname', friend_resolv.nickname
         					),
@@ -153,16 +155,14 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
 				friend_resolv.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
                 WHERE (f.user_id1 = u.id OR f.user_id2 = u.id) AND f.status = 'active'), '[]'
     		  ) AS active_friends,
-			   COALESCE((
-              	SELECT json_agg(blocked_nickname.nickname)
-				FROM blocked_users bu JOIN users blocked_nickname ON 
-				bu.blocked_id = blocked_nickname.id WHERE bu.blocker_id = u.id), '[]'
+			   COALESCE(
+              	SELECT blocked_id FROM blocked_users WHERE blocker_id = u.id
 			  ) AS blocked_users
 			   FROM users u WHERE u.id = $1`
 	pd := models.PersonalData{}
 	if err := ur.storage.Pool.QueryRow(ctx, query, id).Scan(
-		&pd.ID,
-		&pd.Nickname,
+		&pd.Identity.ID,
+		&pd.Identity.Nickname,
 		&pd.RegisterTime,
 		&pd.Tagline,
 		&pd.FriendsReqs,

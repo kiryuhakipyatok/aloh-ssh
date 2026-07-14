@@ -1,7 +1,7 @@
 package main
 
 import (
-	"aloh-ssh/internal/app"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/app"
 )
 
 func main() {

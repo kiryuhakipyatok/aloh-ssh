@@ -1,11 +1,11 @@
 package services
 
 import (
-	"aloh-ssh/internal/domain/models"
-	"aloh-ssh/internal/domain/repositories"
-	"aloh-ssh/internal/utils"
-	"aloh-ssh/pkg/errs"
-	"aloh-ssh/pkg/logger"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/repositories"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/utils"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/logger"
 	"context"
 	"strings"
 	"time"
@@ -58,8 +58,10 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 
 	user := new(models.User{
 		PersonalData: models.PersonalData{
-			ID:           id,
-			Nickname:     nickname,
+			Identity: models.Identity{
+				ID:       id,
+				Nickname: nickname,
+			},
 			RegisterTime: time.Now().UTC(),
 			Tagline:      "",
 		},

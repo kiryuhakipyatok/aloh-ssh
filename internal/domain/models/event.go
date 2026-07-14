@@ -27,23 +27,23 @@ type Event struct {
 }
 
 type FriendConnsData struct {
-	Id       uuid.UUID `json:"id"`
-	Connects []string  `json:"connects"`
+	Identity Identity `json:"identity"`
+	Connects []string `json:"connects"`
 }
 
 type UsersHardDenoiseData struct {
-	Id    uuid.UUID `json:"id"`
-	State bool      `json:"state"`
+	Identity Identity `json:"identity"`
+	State    bool     `json:"state"`
 }
 
 type UsersSoftDenoiseData struct {
-	Id    uuid.UUID `json:"id"`
-	State bool      `json:"state"`
+	Identity Identity `json:"identity"`
+	State    bool     `json:"state"`
 }
 
 type TaglineData struct {
-	Id      uuid.UUID `json:"id"`
-	Tagline string    `json:"tagline"`
+	Identity Identity `json:"identity"`
+	Tagline  string   `json:"tagline"`
 }
 
 func NewFriendEvent(fp []byte) Event {
@@ -123,12 +123,12 @@ func UpdateTaglineEvent(td []byte) Event {
 	}
 }
 
-func MarshFP(id uuid.UUID, nickname string) ([]byte, error) {
-	fp := FriendPersonal{
+func MarshIdentity(id uuid.UUID, nickname string) ([]byte, error) {
+	iden := Identity{
 		ID:       id,
 		Nickname: nickname,
 	}
-	data, err := json.Marshal(fp)
+	data, err := json.Marshal(iden)
 	if err != nil {
 		return nil, err
 	}
@@ -136,10 +136,12 @@ func MarshFP(id uuid.UUID, nickname string) ([]byte, error) {
 	return data, nil
 }
 
-func MarshTD(id uuid.UUID, tagline string) ([]byte, error) {
+func MarshTD(id uuid.UUID, nickname string, tagline string) ([]byte, error) {
 	td := TaglineData{
-		Id:      id,
-		Tagline: tagline,
+		Identity: Identity{
+			ID:       id,
+			Nickname: nickname,
+		},
 	}
 	data, err := json.Marshal(td)
 	if err != nil {

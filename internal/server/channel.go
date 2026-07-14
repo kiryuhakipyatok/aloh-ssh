@@ -1,8 +1,8 @@
 package server
 
 import (
-	"aloh-ssh/internal/domain/models"
-	"aloh-ssh/pkg/errs"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,7 +17,7 @@ import (
 func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context) {
 	//op := "server.proccessEventChannel"
 	//log := s.log.AddOp(op)
-
+	nickname := ctx.User()
 	channel, requests, err := newChan.Accept()
 	if err != nil {
 		//log.Error("failed to accept channel")
@@ -86,12 +86,17 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 
 	encoder := json.NewEncoder(channel)
 
+	userIdentity := models.Identity{
+		ID:       id,
+		Nickname: nickname,
+	}
+
 	usersFriends, err := s.userService.GetUsersFriends(ctx, userID)
 	if err != nil {
 		//log.Error("failed to get user's friends", logger.Err(err), logUserId)
 	} else {
 		userFcd := models.FriendConnsData{
-			Id:       id,
+			Identity: userIdentity,
 			Connects: userSession.CurrentConnects,
 		}
 		userFcdBytes, err := json.Marshal(userFcd)
@@ -111,8 +116,13 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 						return
 					}
 
+					friendIdentity := models.Identity{
+						ID:       friend.ID,
+						Nickname: friend.Nickname,
+					}
+
 					friendFcd := models.FriendConnsData{
-						Id:       friend.ID,
+						Identity: friendIdentity,
 						Connects: friendSession.CurrentConnects,
 					}
 					friendFcdBytes, err := json.Marshal(friendFcd)

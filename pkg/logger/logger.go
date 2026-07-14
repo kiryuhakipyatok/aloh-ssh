@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"aloh-ssh/internal/config"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/config"
 	"fmt"
 	"io"
 	"log/slog"
