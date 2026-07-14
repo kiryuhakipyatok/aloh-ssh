@@ -8,6 +8,7 @@ type (
 	UsersHardDenoiseData = models.UsersHardDenoiseData
 	UsersSoftDenoiseData = models.UsersSoftDenoiseData
 	TaglineData          = models.TaglineData
+	Identity             = models.Identity
 )
 
 const (
