@@ -98,8 +98,7 @@ func (ur *userRepository) GetUser(ctx context.Context, nickname string) (*models
 func (ur *userRepository) GetUsersFriends(ctx context.Context, id uuid.UUID) ([]models.Friend, error) {
 	op := "userRepository.GetActiveFriends"
 	query := `
-		SELECT u.id, u.nickname
-		FROM friends f 
+		SELECT u.id, u.nickname FROM friends f 
 		JOIN users u ON u.id = (CASE WHEN f.user_id1 = $1 THEN f.user_id2 ELSE f.user_id1 END)
 		WHERE (f.user_id1 = $1 OR f.user_id2 = $1) AND f.status = 'active'
 	`
@@ -155,9 +154,8 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
 				friend_resolv.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
                 WHERE (f.user_id1 = u.id OR f.user_id2 = u.id) AND f.status = 'active'), '[]'
     		  ) AS active_friends,
-			   COALESCE(
-              	SELECT blocked_id FROM blocked_users WHERE blocker_id = u.id
-			  ) AS blocked_users
+			   COALESCE((SELECT json_agg(blocked_id) FROM blocked_users WHERE blocker_id = u.id), '[]') 
+			   AS blocked_users
 			   FROM users u WHERE u.id = $1`
 	pd := models.PersonalData{}
 	if err := ur.storage.Pool.QueryRow(ctx, query, id).Scan(
