@@ -1,11 +1,12 @@
 package server
 
 import (
-	"github.com/kiryuhakipyatok/aloh-ssh/internal/config"
-	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/services"
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/config"
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/services"
 
 	"github.com/charmbracelet/ssh"
 )
@@ -131,7 +132,7 @@ func (s *Server) publicKeyHandler() ssh.PublicKeyHandler {
 			if equal {
 				ctx.SetValue("userID", user.PersonalData.Identity.ID)
 			}
-			return ssh.KeysEqual(userKey, key)
+			return equal
 		}
 
 	}
