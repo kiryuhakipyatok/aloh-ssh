@@ -112,10 +112,10 @@ func (s *Server) publicKeyHandler() ssh.PublicKeyHandler {
 				return false
 			}
 			ctx.SetValue("userID", id)
-			if _, err := s.sessionService.NewSession(appCtx, id); err != nil {
-				//log.Error("failed to create session", logger.Err(err), logUserNickname)
-				return false
-			}
+			// if _, err := s.sessionService.NewSession(appCtx, id); err != nil {
+			// 	//log.Error("failed to create session", logger.Err(err), logUserNickname)
+			// 	return false
+			// }
 			return true
 		default:
 			user, err := s.userService.GetUserByNickname(ctx, nickname)

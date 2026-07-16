@@ -1,13 +1,14 @@
 package server
 
 import (
-	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
-	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"context"
 	"encoding/json"
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 
 	"github.com/charmbracelet/ssh"
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 		//log.Error("failed to accept channel")
 		return
 	}
+	defer channel.Close()
 
 	go gossh.DiscardRequests(requests)
 	id, ok := ctx.Value("userID").(uuid.UUID)
@@ -77,7 +79,6 @@ func (s *Server) proccessEventChannel(srv *ssh.Server, conn *gossh.ServerConn, n
 
 			wg.Wait()
 		}
-		channel.Close()
 		if err := s.sessionService.DeleteSession(context.Background(), userID); err != nil {
 			//s.log.Error("failed to delete session", logger.Err(err), logUserId)
 		}
