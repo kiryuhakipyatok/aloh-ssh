@@ -154,10 +154,10 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
 				friend_resolv.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
                 WHERE (f.user_id1 = u.id OR f.user_id2 = u.id) AND f.status = 'active'), '[]'
     		  ) AS active_friends,
-			   COALESCE((SELECT json_build_object(
+			   COALESCE((SELECT json_agg(json_build_object(
             					'id', bu.blocked_id,
             					'nickname', bn.nickname
-        					) FROM blocked_users bu JOIN users bn 
+        					)) FROM blocked_users bu JOIN users bn 
 							ON bn.id = bu.blocked_id
 							WHERE blocker_id = u.id), '[]') 
 			   AS blocked_users
