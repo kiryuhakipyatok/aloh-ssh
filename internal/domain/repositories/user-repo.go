@@ -154,7 +154,12 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
 				friend_resolv.id = (CASE WHEN f.user_id1 = u.id THEN f.user_id2 ELSE f.user_id1 END)
                 WHERE (f.user_id1 = u.id OR f.user_id2 = u.id) AND f.status = 'active'), '[]'
     		  ) AS active_friends,
-			   COALESCE((SELECT json_agg(blocked_id) FROM blocked_users WHERE blocker_id = u.id), '[]') 
+			   COALESCE((SELECT json_build_object(
+            					'id', bu.blocked_id,
+            					'nickname', bn.nickname
+        					) FROM blocked_users bu JOIN users bn 
+							ON bn.id = bu.blocked_id
+							WHERE blocker_id = u.id), '[]') 
 			   AS blocked_users
 			   FROM users u WHERE u.id = $1`
 	pd := models.PersonalData{}
