@@ -45,13 +45,15 @@ func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, bl
 			SELECT COALESCE(
 			    (SELECT deleted_friend_id FROM deleted_friend),
 			    '00000000-0000-0000-0000-000000000000'
-				), blocked_id
-			FROM blocked_user`
+				), blocked_id FROM blocked_user`
 	var ids struct {
 		fId uuid.UUID
 		bId uuid.UUID
 	}
-	err := br.storage.Pool.QueryRow(ctx, query, userId, blockedUserNick, blockTime).Scan(&ids)
+	err := br.storage.Pool.QueryRow(ctx, query, userId, blockedUserNick, blockTime).Scan(
+		&ids.fId,
+		&ids.bId,
+	)
 	if err != nil {
 		if storage.ErrorAlreadyExists(err) {
 			return uuid.Nil, uuid.Nil, errs.ErrAlreadyExists(op, err)

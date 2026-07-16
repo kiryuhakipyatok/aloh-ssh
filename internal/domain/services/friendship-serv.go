@@ -34,7 +34,7 @@ func (fs *friendshipService) NewFriend(ctx context.Context, userID uuid.UUID, fr
 	op := "friendshipService.NewFriend"
 	log := fs.logger.AddOp(op)
 	logUserId := logger.Attr("id", userID)
-	log.Info("additing new friend request", logUserId, logger.Attr("friendNick", friendNickname))
+	log.Info("additing new friend request", logUserId)
 	t := time.Now().UTC()
 	friendId, err := fs.friendshipRepository.NewFriendRequest(ctx, userID, friendNickname, t)
 	if err != nil {
