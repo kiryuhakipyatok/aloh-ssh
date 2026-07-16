@@ -74,7 +74,11 @@ func (s *Server) newFriendRequest() ssh.RequestHandler {
 		//log.Info("new friend request", logUserId)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-		friendNickname := string(req.Payload)
+		var friendNickname string
+		if err := json.Unmarshal(req.Payload, &friendNickname); err != nil {
+			return false, castErr(err)
+		}
+
 		friendId, err := s.friendshipSerive.NewFriend(appCtx, id, friendNickname)
 		if err != nil {
 			//log.Error("failed to add new friend request", logger.Err(err), logUserId)
@@ -203,11 +207,11 @@ func (s *Server) denyFriendshipRequest() ssh.RequestHandler {
 		//log.Info("new deny friendship request", logUserId)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-		friendId, err := uuid.ParseBytes(req.Payload)
-		if err != nil {
-			//log.Error("failed to parse friend id", logger.Err(err), logUserId)
+		var friendId uuid.UUID
+		if err := json.Unmarshal(req.Payload, &friendId); err != nil {
 			return false, castErr(err)
 		}
+
 		if err := s.friendshipSerive.DenyFriendship(appCtx, id, friendId); err != nil {
 			//log.Error("failed to deny friendship", logger.Err(err), logUserId)
 			return false, castErr(err)
@@ -231,12 +235,11 @@ func (s *Server) deleteFromFriendsRequest() ssh.RequestHandler {
 		//log.Info("new delete from friends request", logUserId)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-
-		friendId, err := uuid.ParseBytes(req.Payload)
-		if err != nil {
-			//log.Error("failed to parse friend id", logger.Err(err), logUserId)
+		var friendId uuid.UUID
+		if err := json.Unmarshal(req.Payload, &friendId); err != nil {
 			return false, castErr(err)
 		}
+
 		if err := s.friendshipSerive.DeleteFromFriends(appCtx, id, friendId); err != nil {
 			//log.Error("failed to delete from friends", logger.Err(err), logUserId)
 			return false, castErr(err)
@@ -335,8 +338,11 @@ func (s *Server) blockUserRequest() ssh.RequestHandler {
 		//log.Info("new block user request", logUserId)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
+		var blockedNickname string
+		if err := json.Unmarshal(req.Payload, &blockedNickname); err != nil {
+			return false, castErr(err)
+		}
 
-		blockedNickname := string(req.Payload)
 		blockedId, friendId, err := s.blockedService.BlockUser(appCtx, id, blockedNickname)
 		if err != nil {
 			//	log.Error("failed to block user", logger.Err(err), logUserId)
@@ -413,7 +419,10 @@ func (s *Server) unblockUserRequest() ssh.RequestHandler {
 		//log.Info("new unblock user request", logUserId)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-		unblockedNick := string(req.Payload)
+		var unblockedNick string
+		if err := json.Unmarshal(req.Payload, &unblockedNick); err != nil {
+			return false, castErr(err)
+		}
 		unblockedId, err := s.blockedService.UnblockUser(appCtx, id, unblockedNick)
 		if err != nil {
 			//log.Error("failed to unblock user", logger.Err(err), logUserId)
@@ -513,7 +522,10 @@ func (s *Server) setTaglineRequest() ssh.RequestHandler {
 		//log.Info("new deny friendship request", logUserId)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-		tagline := string(req.Payload)
+		var tagline string
+		if err := json.Unmarshal(req.Payload, &tagline); err != nil {
+			return false, castErr(err)
+		}
 		if err := s.userService.SetTagline(appCtx, id, tagline); err != nil {
 			return false, castErr(err)
 		}
