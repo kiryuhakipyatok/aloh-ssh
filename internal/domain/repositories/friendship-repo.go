@@ -31,8 +31,8 @@ func NewFriendshipRepository(fr *storage.Storage) FriendshipRepository {
 func (fr *friendshipRepository) NewFriendRequest(ctx context.Context, userId uuid.UUID, friendNickname string, timeReq time.Time) (uuid.UUID, error) {
 	op := "friendshipRepository.NewFriendRequest"
 	query := `INSERT INTO friends (user_id1, user_id2, req_time)
-			  USING users u WHERE u.nickname = $2 AND u.id != $1
-	          VALUES ($1, u.id, $3) RETURNING u.id`
+			  SELECT $1, id, $3 FROM users WHERE nickname = $2 AND id != $1
+              RETURNING user_id2`
 	var id uuid.UUID
 	err := fr.storage.Pool.QueryRow(ctx, query, userId, friendNickname, timeReq).Scan(&id)
 	if err != nil {
@@ -75,7 +75,8 @@ func (fr *friendshipRepository) DenyFriendship(ctx context.Context, userId, frie
 
 func (fr *friendshipRepository) DeleteFromFriends(ctx context.Context, userId, friendId uuid.UUID) error {
 	op := "friendshipRepository.DeleteFromFriends"
-	query := `DELETE FROM friends ((user_id1 = $2 AND user_id2 = $1) OR (user_id1 = $1 AND user_id2 = $2)) AND status = 'active'`
+	query := `DELETE FROM friends WHERE ((user_id1 = $2 AND user_id2 = $1) 
+			  OR (user_id1 = $1 AND user_id2 = $2)) AND status = 'active'`
 	res, err := fr.storage.Pool.Exec(ctx, query, friendId, userId)
 	if err != nil {
 		return errs.NewAppError(op, err)

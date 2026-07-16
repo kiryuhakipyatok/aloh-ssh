@@ -1,11 +1,12 @@
 package repositories
 
 import (
-	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
-	"github.com/kiryuhakipyatok/aloh-ssh/pkg/storage"
 	"context"
 	"errors"
 	"time"
+
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
+	"github.com/kiryuhakipyatok/aloh-ssh/pkg/storage"
 
 	"github.com/google/uuid"
 )
@@ -37,9 +38,9 @@ func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, bl
 				RETURNING fu.id AS deleted_friend_id
 			),
 			blocked_user AS (
-				INSERT INTO blocked_users bu (bu.blocker_id, bu.blocked_id, bu.block_time)
-				USING found_user fu VALUES ($1, fu.id, $3)
-				RETURNING fu.id
+				INSERT INTO blocked_users (blocker_id, blocked_id, block_time)
+				SELECT $1, id, $3 FROM users WHERE nickname = $2 AND id != $1
+				RETURNING blocked_id
 			)
 			SELECT COALESCE(
 			    (SELECT deleted_friend_id FROM deleted_friend),
