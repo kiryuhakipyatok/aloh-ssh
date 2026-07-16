@@ -29,7 +29,7 @@ func NewBlockedRepository(s *storage.Storage) BlockedRepository {
 func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string, blockTime time.Time) (uuid.UUID, uuid.UUID, error) {
 	op := "blockedRepository.BlockUser"
 	query := `WITH found_user AS (
-				SELECT id FROM user WHERE nickname = $2 AND id != $1 FOR KEY SHARE
+				SELECT id FROM users WHERE nickname = $2 AND id != $1 FOR KEY SHARE
 			),
 			deleted_friend AS (
 				DELETE FROM friends f USING found_user fu
@@ -39,13 +39,13 @@ func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, bl
 			),
 			blocked_user AS (
 				INSERT INTO blocked_users (blocker_id, blocked_id, block_time)
-				SELECT $1, id, $3 FROM users WHERE nickname = $2 AND id != $1
+				SELECT $1, id, $3 FROM found_user
 				RETURNING blocked_id
 			)
 			SELECT COALESCE(
 			    (SELECT deleted_friend_id FROM deleted_friend),
 			    '00000000-0000-0000-0000-000000000000'
-				), SELECT blocked_id FROM blocked_user
+				), blocked_id
 			FROM blocked_user`
 	var ids struct {
 		fId uuid.UUID
