@@ -32,7 +32,7 @@ func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, bl
 			),
 			deleted_friend AS (
 				DELETE FROM friends f USING found_user fu
-				WHERE f.user_id1 = fu.id AND f.user_id2 = $1) 
+				WHERE (f.user_id1 = fu.id AND f.user_id2 = $1) 
        			OR (f.user_id1 = $1 AND f.user_id2 = fu.id) 
 				RETURNING fu.id AS deleted_friend_id
 			),
