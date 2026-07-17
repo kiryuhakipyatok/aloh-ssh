@@ -62,7 +62,7 @@ func (fr *friendshipRepository) AcceptFriendship(ctx context.Context, userId, fr
 
 func (fr *friendshipRepository) DenyFriendship(ctx context.Context, userId, friendId uuid.UUID) error {
 	op := "friendshipRepository.DenyFriendship"
-	query := `DELETE FROM friends user_id1 = $1 AND user_id2 = $2`
+	query := `DELETE FROM friends WHERE user_id1 = $1 AND user_id2 = $2`
 	res, err := fr.storage.Pool.Exec(ctx, query, friendId, userId)
 	if err != nil {
 		return errs.NewAppError(op, err)
