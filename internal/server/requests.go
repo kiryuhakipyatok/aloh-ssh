@@ -425,7 +425,7 @@ func (s *Server) updateCurOnlineRequest() ssh.RequestHandler {
 			fcdBytes, err := json.Marshal(fcd)
 			if err != nil {
 				//log.Error("failed to marshal friend connects data", logger.Err(err), logUserId)
-				return
+				return false, castErr(err)
 			}
 			var wg sync.WaitGroup
 			for _, friend := range usersFriends {
@@ -445,7 +445,6 @@ func (s *Server) updateCurOnlineRequest() ssh.RequestHandler {
 
 			wg.Wait()
 			//log.Error("failed to get user's session", logger.Err(err), logUserId)
-			return false, castErr(err)
 		}
 
 		//log.Info("user's current online updates successfully", logUserId)
