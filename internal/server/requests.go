@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sync"
 
 	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
@@ -433,9 +432,6 @@ func (s *Server) updateCurOnlineRequest() ssh.RequestHandler {
 				wg.Go(func() {
 					friendSession, err := s.sessionService.GetSession(context.Background(), friend.ID)
 					if err != nil {
-						if !errors.Is(err, errs.ErrNotFoundBase) {
-							//log.Error("failed to get friend's session", logger.Err(err), logUserId)
-						}
 						return
 					}
 
