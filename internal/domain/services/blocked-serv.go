@@ -11,7 +11,7 @@ import (
 )
 
 type BlockedService interface {
-	BlockUser(ctx context.Context, userId uuid.UUID, blockedUserId string) (uuid.UUID, uuid.UUID, error)
+	BlockUser(ctx context.Context, userId uuid.UUID, blockedUserId string) (uuid.UUID, error)
 	UnblockUser(ctx context.Context, userId uuid.UUID, unblockedUserNick string) (uuid.UUID, error)
 }
 
@@ -27,21 +27,21 @@ func NewBlockedService(br repositories.BlockedRepository, l *logger.Logger) Bloc
 	}
 }
 
-func (bs *blockedService) BlockUser(ctx context.Context, userId uuid.UUID, blockedUserId string) (uuid.UUID, uuid.UUID, error) {
+func (bs *blockedService) BlockUser(ctx context.Context, userId uuid.UUID, blockedUserId string) (uuid.UUID, error) {
 	op := "blockedService.BlockUser"
 	log := bs.logger.AddOp(op)
 	logUserId := logger.Attr("id", blockedUserId)
 	log.Info("blocking user", logUserId)
 	t := time.Now().UTC()
-	blockedId, friendId, err := bs.blockedRepository.BlockUser(ctx, userId, blockedUserId, t)
+	blockedId, err := bs.blockedRepository.BlockUser(ctx, userId, blockedUserId, t)
 	if err != nil {
 		log.Error("failed to block user", logUserId, logger.Err(err))
-		return uuid.Nil, uuid.Nil, errs.NewAppError(op, err)
+		return uuid.Nil, errs.NewAppError(op, err)
 	}
 
 	log.Info("user blocked successfully successfully", logUserId)
 
-	return blockedId, friendId, nil
+	return blockedId, nil
 }
 
 func (bs *blockedService) UnblockUser(ctx context.Context, userId uuid.UUID, unblockedUserNick string) (uuid.UUID, error) {

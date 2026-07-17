@@ -12,7 +12,7 @@ import (
 )
 
 type BlockedRepository interface {
-	BlockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string, blockTime time.Time) (uuid.UUID, uuid.UUID, error)
+	BlockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string, blockTime time.Time) (uuid.UUID, error)
 	UnblockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string) (uuid.UUID, error)
 }
 
@@ -26,7 +26,7 @@ func NewBlockedRepository(s *storage.Storage) BlockedRepository {
 	}
 }
 
-func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string, blockTime time.Time) (uuid.UUID, uuid.UUID, error) {
+func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string, blockTime time.Time) (uuid.UUID, error) {
 	op := "blockedRepository.BlockUser"
 	query := `WITH found_user AS (
 				SELECT id FROM users WHERE nickname = $2 AND id != $1 FOR KEY SHARE
@@ -35,35 +35,26 @@ func (br *blockedRepository) BlockUser(ctx context.Context, userId uuid.UUID, bl
 				DELETE FROM friends f USING found_user fu
 				WHERE (f.user_id1 = fu.id AND f.user_id2 = $1) 
        			OR (f.user_id1 = $1 AND f.user_id2 = fu.id) 
-				RETURNING fu.id AS deleted_friend_id
 			),
 			blocked_user AS (
 				INSERT INTO blocked_users (blocker_id, blocked_id, block_time)
 				SELECT $1, id, $3 FROM found_user
 				RETURNING blocked_id
 			)
-			SELECT COALESCE(
-			    (SELECT deleted_friend_id FROM deleted_friend),
-			    '00000000-0000-0000-0000-000000000000'
-				), blocked_id FROM blocked_user`
-	var ids struct {
-		fId uuid.UUID
-		bId uuid.UUID
-	}
-	err := br.storage.Pool.QueryRow(ctx, query, userId, blockedUserNick, blockTime).Scan(
-		&ids.fId,
-		&ids.bId,
-	)
+			SELECT blocked_id FROM blocked_user`
+	var bId uuid.UUID
+
+	err := br.storage.Pool.QueryRow(ctx, query, userId, blockedUserNick, blockTime).Scan(&bId)
 	if err != nil {
 		if storage.ErrorAlreadyExists(err) {
-			return uuid.Nil, uuid.Nil, errs.ErrAlreadyExists(op, err)
+			return uuid.Nil, errs.ErrAlreadyExists(op, err)
 		} else if errors.Is(err, storage.ErrNotFound()) {
-			return uuid.Nil, uuid.Nil, errs.ErrNotFound(op)
+			return uuid.Nil, errs.ErrNotFound(op)
 		}
-		return uuid.Nil, uuid.Nil, errs.NewAppError(op, err)
+		return uuid.Nil, errs.NewAppError(op, err)
 	}
 
-	return ids.bId, ids.fId, nil
+	return bId, nil
 }
 
 func (br *blockedRepository) UnblockUser(ctx context.Context, userId uuid.UUID, unblockedUserNick string) (uuid.UUID, error) {

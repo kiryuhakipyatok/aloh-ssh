@@ -88,10 +88,10 @@ func UnblockUserEvent(fp []byte) Event {
 	}
 }
 
-func FriendOnlineEvent(id []byte) Event {
+func FriendOnlineEvent(fcd []byte) Event {
 	return Event{
 		Type: FRIEND_ONLINE,
-		Data: id,
+		Data: fcd,
 	}
 }
 
