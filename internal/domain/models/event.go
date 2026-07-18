@@ -131,7 +131,7 @@ func UpdateTaglineEvent(td []byte) Event {
 
 func UpdateNicknameEvent(nd []byte) Event {
 	return Event{
-		Type: UPDATE_TAGLINE,
+		Type: UPDATE_NICKNAME,
 		Data: nd,
 	}
 }
