@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/storage"
 
@@ -14,6 +15,7 @@ import (
 type BlockedRepository interface {
 	BlockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string, blockTime time.Time) (uuid.UUID, error)
 	UnblockUser(ctx context.Context, userId uuid.UUID, blockedUserNick string) (uuid.UUID, error)
+	FetchBlockedUsersById(ctx context.Context, userId uuid.UUID) ([]models.Identity, error)
 }
 
 type blockedRepository struct {
@@ -62,7 +64,7 @@ func (br *blockedRepository) UnblockUser(ctx context.Context, userId uuid.UUID, 
 	query := `DELETE FROM blocked_users bu USING users u
 			  WHERE u.nickname = $2 AND u.id != $1 AND
       		  bu.blocker_id = $1 AND bu.blocked_id = u.id
-			  RETURNING u.id
+			  RETURNING bu.blocked_id
 			`
 	var id uuid.UUID
 	err := br.storage.Pool.QueryRow(ctx, query, userId, unblockedUserNick).Scan(&id)
@@ -76,4 +78,30 @@ func (br *blockedRepository) UnblockUser(ctx context.Context, userId uuid.UUID, 
 	}
 
 	return id, nil
+}
+
+func (br *blockedRepository) FetchBlockedUsersById(ctx context.Context, userId uuid.UUID) ([]models.Identity, error) {
+	op := "blockedRepository.GetBlockFetchBlockedUsersByIdedUsersById"
+
+	query := `SELECT json_agg(json_build_object(
+							'identity', json_build_object(
+            					'id', bu.blocker_id,
+            					'nickname', u.nickname
+        					)
+            			)) FROM blocked_users bu 
+			  JOIN users u ON bu.blocked_id = u.id
+			  WHERE bu.blocked_id = $1
+			`
+	var blockers []models.Identity
+	err := br.storage.Pool.QueryRow(ctx, query, userId).Scan(&blockers)
+	if err != nil {
+		if storage.ErrorAlreadyExists(err) {
+			return nil, errs.ErrAlreadyExists(op, err)
+		} else if errors.Is(err, storage.ErrNotFound()) {
+			return nil, errs.ErrNotFound(op)
+		}
+		return nil, errs.NewAppError(op, err)
+	}
+
+	return blockers, nil
 }

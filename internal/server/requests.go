@@ -428,25 +428,47 @@ func (s *Server) newNicknameRequest() ssh.RequestHandler {
 			return false, castErr(err)
 		}
 
+		usersBlockers, err := s.blockedService.FetchUsersBlockers(context.Background(), id)
+		if err != nil {
+			return false, castErr(err)
+		}
+
 		ndData, err := models.MarshND(id, nickname, newNickname)
 		if err != nil {
 			return false, castErr(err)
 		}
 
 		var wg sync.WaitGroup
-		for _, friend := range usersFriends {
-			wg.Go(func() {
-				friendSession, err := s.sessionService.GetSession(context.Background(), friend.ID)
-				if err != nil {
-					return
-				}
-				updateNicknameEvent := models.UpdateNicknameEvent(ndData)
-				select {
-				case friendSession.EventsChan <- updateNicknameEvent:
-				default:
-				}
-			})
-		}
+		wg.Go(func() {
+			for _, friend := range usersFriends {
+				wg.Go(func() {
+					friendSession, err := s.sessionService.GetSession(context.Background(), friend.ID)
+					if err != nil {
+						return
+					}
+					updateNicknameEvent := models.UpdateNicknameEvent(ndData)
+					select {
+					case friendSession.EventsChan <- updateNicknameEvent:
+					default:
+					}
+				})
+			}
+		})
+		wg.Go(func() {
+			for _, blocker := range usersBlockers {
+				wg.Go(func() {
+					blockerSession, err := s.sessionService.GetSession(context.Background(), blocker.ID)
+					if err != nil {
+						return
+					}
+					updateNicknameEvent := models.UpdateNicknameEvent(ndData)
+					select {
+					case blockerSession.EventsChan <- updateNicknameEvent:
+					default:
+					}
+				})
+			}
+		})
 
 		wg.Wait()
 
