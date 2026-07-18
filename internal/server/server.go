@@ -18,7 +18,6 @@ type Server struct {
 	friendshipSerive services.FriendshipService
 	blockedService   services.BlockedService
 	cfg              config.Server
-	//log              *logger.Logger
 }
 
 const (
@@ -33,7 +32,6 @@ type NewServerSetup struct {
 	UserService       services.UserService
 	FriendshipService services.FriendshipService
 	BlockedService    services.BlockedService
-	//Log               *logger.Logger
 }
 
 func NewServer(nss NewServerSetup) *Server {
@@ -44,7 +42,6 @@ func NewServer(nss NewServerSetup) *Server {
 		friendshipSerive: nss.FriendshipService,
 		blockedService:   nss.BlockedService,
 		cfg:              nss.Cfg,
-		//log:              nss.Log,
 	}
 	server := &ssh.Server{
 		Addr:             addr,
@@ -61,6 +58,7 @@ func NewServer(nss NewServerSetup) *Server {
 			"unblock-user":  s.unblockUserRequest(),
 			"conns-update":  s.updateCurOnlineRequest(),
 			"set-tagline":   s.setTaglineRequest(),
+			"new-nickname":  s.newNicknameRequest(),
 		},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
 			"event-channel": s.proccessEventChannel,
@@ -74,19 +72,15 @@ func NewServer(nss NewServerSetup) *Server {
 }
 
 func (s *Server) passwordHandler() ssh.PasswordHandler {
-	//op := "server.passwordHandler"
-	//log := s.log.AddOp(op)
 	return func(ctx ssh.Context, password string) bool {
 		if ctx.ClientVersion() != LOGIN {
 			return false
 		}
 		nickname := ctx.User()
-		//logUserNickname := logger.Attr("nickname", nickname)
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
 		id, err := s.userService.CheckPassword(appCtx, nickname, []byte(password))
 		if err != nil {
-			//log.Error("failed to check password", logger.Err(err), logUserNickname)
 			return false
 		}
 		ctx.SetValue("userID", id)
@@ -96,36 +90,26 @@ func (s *Server) passwordHandler() ssh.PasswordHandler {
 }
 
 func (s *Server) publicKeyHandler() ssh.PublicKeyHandler {
-	//op := "server.publicKeyHandler"
-	//log := s.log.AddOp(op)
 	return func(ctx ssh.Context, key ssh.PublicKey) bool {
 		nickname := ctx.User()
-		//logUserNickname := logger.Attr("nickname", nickname)
-		//log.Info("new connect", logUserNickname)
+
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
 		switch ctx.ClientVersion() {
 		case REGISTER:
 			id, err := s.userService.NewUser(appCtx, nickname, key)
 			if err != nil {
-				//log.Error("failed to create new user", logger.Err(err), logUserNickname)
 				return false
 			}
 			ctx.SetValue("userID", id)
-			// if _, err := s.sessionService.NewSession(appCtx, id); err != nil {
-			// 	//log.Error("failed to create session", logger.Err(err), logUserNickname)
-			// 	return false
-			// }
 			return true
 		default:
 			user, err := s.userService.GetUserByNickname(ctx, nickname)
 			if err != nil {
-				//log.Error("failed to get user", logger.Err(err), logUserNickname)
 				return false
 			}
 			userKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(user.Key))
 			if err != nil {
-				//log.Error("failed to parse user's key", logger.Err(err), logUserNickname)
 				return false
 			}
 			equal := ssh.KeysEqual(userKey, key)

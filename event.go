@@ -9,6 +9,7 @@ type (
 	UsersSoftDenoiseData = models.UsersSoftDenoiseData
 	TaglineData          = models.TaglineData
 	Identity             = models.Identity
+	NicknameData         = models.NicknameData
 )
 
 const (
@@ -24,4 +25,5 @@ const (
 	UPDATE_HARD_DENOISE = models.UPDATE_HARD_DENOISE
 	UPDATE_SOFT_DENOISE = models.UPDATE_SOFT_DENOISE
 	UPDATE_TAGLINE      = models.UPDATE_TAGLINE
+	UPDATE_NICKNAME     = models.UPDATE_NICKNAME
 )

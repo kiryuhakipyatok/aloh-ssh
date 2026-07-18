@@ -19,6 +19,7 @@ const (
 	UPDATE_HARD_DENOISE
 	UPDATE_SOFT_DENOISE
 	UPDATE_TAGLINE
+	UPDATE_NICKNAME
 )
 
 type Event struct {
@@ -44,6 +45,11 @@ type UsersSoftDenoiseData struct {
 type TaglineData struct {
 	Identity Identity `json:"identity"`
 	Tagline  string   `json:"tagline"`
+}
+
+type NicknameData struct {
+	Identity Identity `json:"identity"`
+	Nickname string   `json:"nickname"`
 }
 
 func NewFriendEvent(fp []byte) Event {
@@ -123,6 +129,13 @@ func UpdateTaglineEvent(td []byte) Event {
 	}
 }
 
+func UpdateNicknameEvent(nd []byte) Event {
+	return Event{
+		Type: UPDATE_TAGLINE,
+		Data: nd,
+	}
+}
+
 func MarshIdentity(id uuid.UUID, nickname string) ([]byte, error) {
 	iden := Identity{
 		ID:       id,
@@ -142,8 +155,25 @@ func MarshTD(id uuid.UUID, nickname string, tagline string) ([]byte, error) {
 			ID:       id,
 			Nickname: nickname,
 		},
+		Tagline: tagline,
 	}
 	data, err := json.Marshal(td)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func MarshND(id uuid.UUID, nickname, newNickname string) ([]byte, error) {
+	nd := NicknameData{
+		Identity: Identity{
+			ID:       id,
+			Nickname: nickname,
+		},
+		Nickname: newNickname,
+	}
+	data, err := json.Marshal(nd)
 	if err != nil {
 		return nil, err
 	}

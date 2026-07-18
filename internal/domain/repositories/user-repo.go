@@ -1,11 +1,12 @@
 package repositories
 
 import (
+	"context"
+	"errors"
+
 	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/storage"
-	"context"
-	"errors"
 
 	"github.com/google/uuid"
 )
@@ -20,6 +21,7 @@ type UserRepository interface {
 	GetPersonalData(ctx context.Context, id uuid.UUID) (*models.PersonalData, error)
 	GetUsersFriends(ctx context.Context, id uuid.UUID) ([]models.Friend, error)
 	SetTagline(ctx context.Context, id uuid.UUID, tagline string) error
+	EditNickname(ctx context.Context, id uuid.UUID, nickname string) error
 }
 
 type userRepository struct {
@@ -229,6 +231,19 @@ func (ur *userRepository) SetTagline(ctx context.Context, id uuid.UUID, tagline 
 	op := "userRepository.SetTalgile"
 	query := "UPDATE users SET tagline=$1 WHERE id=$2"
 	res, err := ur.storage.Pool.Exec(ctx, query, tagline, id)
+	if err != nil {
+		return errs.NewAppError(op, err)
+	}
+	if res.RowsAffected() == 0 {
+		return errs.ErrNotFound(op)
+	}
+	return nil
+}
+
+func (ur *userRepository) EditNickname(ctx context.Context, id uuid.UUID, nickname string) error {
+	op := "userRepository.SetTalgile"
+	query := "UPDATE users SET nickname=$1 WHERE id=$2"
+	res, err := ur.storage.Pool.Exec(ctx, query, nickname, id)
 	if err != nil {
 		return errs.NewAppError(op, err)
 	}

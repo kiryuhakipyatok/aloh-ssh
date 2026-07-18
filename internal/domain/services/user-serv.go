@@ -1,14 +1,15 @@
 package services
 
 import (
+	"context"
+	"strings"
+	"time"
+
 	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/models"
 	"github.com/kiryuhakipyatok/aloh-ssh/internal/domain/repositories"
 	"github.com/kiryuhakipyatok/aloh-ssh/internal/utils"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/errs"
 	"github.com/kiryuhakipyatok/aloh-ssh/pkg/logger"
-	"context"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -25,6 +26,7 @@ type UserService interface {
 	CheckPassword(ctx context.Context, nickname string, password []byte) (uuid.UUID, error)
 	GetPersonalData(ctx context.Context, id uuid.UUID) (*models.PersonalData, error)
 	SetTagline(ctx context.Context, id uuid.UUID, tagline string) error
+	NewNickname(ctx context.Context, userID uuid.UUID, nickname string) error
 }
 
 type userService struct {
@@ -213,13 +215,28 @@ func (us *userService) SetTagline(ctx context.Context, userID uuid.UUID, tagline
 	log := us.logger.AddOp(op)
 	logUserId := logger.Attr("id", userID)
 	log.Info("setting user's tagline", logUserId)
-	log.Info("tagline", logger.Attr("t", tagline))
 	if err := us.userRepository.SetTagline(ctx, userID, tagline); err != nil {
 		log.Error("failed to set tagline", logUserId, logger.Err(err))
 		return errs.NewAppError(op, err)
 	}
 
-	log.Info("user's tagline setted successed", logUserId)
+	log.Info("user's tagline setted successfully", logUserId)
+
+	return nil
+}
+
+func (us *userService) NewNickname(ctx context.Context, userID uuid.UUID, nickname string) error {
+	op := "userService.NewNickname"
+
+	log := us.logger.AddOp(op)
+	logUserId := logger.Attr("id", userID)
+	log.Info("setting new user's nickname", logUserId)
+	if err := us.userRepository.EditNickname(ctx, userID, nickname); err != nil {
+		log.Error("failed to edit nickname", logUserId, logger.Err(err))
+		return errs.NewAppError(op, err)
+	}
+
+	log.Info("user's new nickname setted successfully", logUserId)
 
 	return nil
 }
