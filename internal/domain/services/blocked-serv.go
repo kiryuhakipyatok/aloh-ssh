@@ -76,6 +76,8 @@ func (bs *blockedService) FetchUsersBlockers(ctx context.Context, userId uuid.UU
 		return nil, errs.NewAppError(op, err)
 	}
 
+	log.Info("blockers", blockers)
+
 	log.Info("users blockers fetched successfully", logUserId)
 
 	return blockers, nil

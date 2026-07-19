@@ -16,6 +16,7 @@ type FriendshipService interface {
 	AcceptFriendship(ctx context.Context, userID, friendID uuid.UUID) error
 	DenyFriendship(ctx context.Context, userID, friendID uuid.UUID) error
 	DeleteFromFriends(ctx context.Context, userID, friendID uuid.UUID) error
+	FetchFriendsRequestForId(ctx context.Context, userId uuid.UUID) ([]uuid.UUID, error)
 }
 
 type friendshipService struct {
@@ -92,4 +93,23 @@ func (fs *friendshipService) DeleteFromFriends(ctx context.Context, userID, frie
 	log.Info("deleted from friends successfully", logUserId)
 
 	return nil
+}
+
+func (fs *friendshipService) FetchFriendsRequestForId(ctx context.Context, userId uuid.UUID) ([]uuid.UUID, error) {
+	op := "blockedService.GetFriendsRequestForId"
+	log := fs.logger.AddOp(op)
+	logUserId := logger.Attr("id", userId)
+	log.Info("fetching friends requests for user", logUserId)
+
+	friendReqs, err := fs.friendshipRepository.GetFriendsRequestForId(ctx, userId)
+	if err != nil {
+		log.Error("failed to fetch friends requests for user", logUserId, logger.Err(err))
+		return nil, errs.NewAppError(op, err)
+	}
+
+	log.Info("friendsReqs", friendReqs)
+
+	log.Info("friends requests for user fetched successfully", logUserId)
+
+	return friendReqs, nil
 }

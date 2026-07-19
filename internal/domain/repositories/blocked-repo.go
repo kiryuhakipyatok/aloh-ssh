@@ -95,9 +95,7 @@ func (br *blockedRepository) FetchBlockedUsersById(ctx context.Context, userId u
 	var blockers []models.Identity
 	err := br.storage.Pool.QueryRow(ctx, query, userId).Scan(&blockers)
 	if err != nil {
-		if storage.ErrorAlreadyExists(err) {
-			return nil, errs.ErrAlreadyExists(op, err)
-		} else if errors.Is(err, storage.ErrNotFound()) {
+		if errors.Is(err, storage.ErrNotFound()) {
 			return nil, errs.ErrNotFound(op)
 		}
 		return nil, errs.NewAppError(op, err)

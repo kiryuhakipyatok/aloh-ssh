@@ -16,6 +16,7 @@ type FriendshipRepository interface {
 	AcceptFriendship(ctx context.Context, userId, friendId uuid.UUID) error
 	DenyFriendship(ctx context.Context, userId, friendId uuid.UUID) error
 	DeleteFromFriends(ctx context.Context, userId, friendId uuid.UUID) error
+	GetFriendsRequestForId(ctx context.Context, userId uuid.UUID) ([]uuid.UUID, error)
 }
 
 type friendshipRepository struct {
@@ -85,4 +86,31 @@ func (fr *friendshipRepository) DeleteFromFriends(ctx context.Context, userId, f
 		return errs.ErrNotFound(op)
 	}
 	return nil
+}
+
+func (fr *friendshipRepository) GetFriendsRequestForId(ctx context.Context, userId uuid.UUID) ([]uuid.UUID, error) {
+	op := "friendshipRepository.GetFriendsRequestForId"
+
+	query := `SELECT user1_id FROM friends WHERE user_id2 = $1`
+	var friendReqs []uuid.UUID
+	rows, err := fr.storage.Pool.Query(ctx, query, userId)
+	if err != nil {
+		return nil, errs.NewAppError(op, err)
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var uid uuid.UUID
+		if err := rows.Scan(&uid); err != nil {
+			return nil, err
+		}
+		friendReqs = append(friendReqs, uid)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, errs.NewAppError(op, err)
+	}
+
+	return friendReqs, nil
 }

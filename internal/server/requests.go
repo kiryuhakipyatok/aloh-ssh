@@ -433,6 +433,11 @@ func (s *Server) newNicknameRequest() ssh.RequestHandler {
 			return false, castErr(err)
 		}
 
+		usersFriendsReqs, err := s.friendshipSerive.FetchFriendsRequestForId(ctx, id)
+		if err != nil {
+			return false, castErr(err)
+		}
+
 		ndData, err := models.MarshND(id, nickname, newNickname)
 		if err != nil {
 			return false, castErr(err)
@@ -466,6 +471,21 @@ func (s *Server) newNicknameRequest() ssh.RequestHandler {
 					}
 					select {
 					case blockerSession.EventsChan <- updateNicknameEvent:
+					default:
+					}
+				})
+			}
+		})
+
+		wg.Go(func() {
+			for _, id := range usersFriendsReqs {
+				wg.Go(func() {
+					frSession, err := s.sessionService.GetSession(context.Background(), id)
+					if err != nil {
+						return
+					}
+					select {
+					case frSession.EventsChan <- updateNicknameEvent:
 					default:
 					}
 				})
