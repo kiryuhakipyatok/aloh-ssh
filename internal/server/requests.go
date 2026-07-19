@@ -438,6 +438,8 @@ func (s *Server) newNicknameRequest() ssh.RequestHandler {
 			return false, castErr(err)
 		}
 
+		updateNicknameEvent := models.UpdateNicknameEvent(ndData)
+
 		var wg sync.WaitGroup
 		wg.Go(func() {
 			for _, friend := range usersFriends {
@@ -446,11 +448,12 @@ func (s *Server) newNicknameRequest() ssh.RequestHandler {
 					if err != nil {
 						return
 					}
-					updateNicknameEvent := models.UpdateNicknameEvent(ndData)
+
 					select {
 					case friendSession.EventsChan <- updateNicknameEvent:
 					default:
 					}
+
 				})
 			}
 		})
@@ -461,7 +464,6 @@ func (s *Server) newNicknameRequest() ssh.RequestHandler {
 					if err != nil {
 						return
 					}
-					updateNicknameEvent := models.UpdateNicknameEvent(ndData)
 					select {
 					case blockerSession.EventsChan <- updateNicknameEvent:
 					default:

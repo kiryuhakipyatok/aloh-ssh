@@ -245,6 +245,9 @@ func (ur *userRepository) EditNickname(ctx context.Context, id uuid.UUID, nickna
 	query := "UPDATE users SET nickname=$1 WHERE id=$2"
 	res, err := ur.storage.Pool.Exec(ctx, query, nickname, id)
 	if err != nil {
+		if storage.ErrorAlreadyExists(err) {
+			return errs.ErrAlreadyExists(op, err)
+		}
 		return errs.NewAppError(op, err)
 	}
 	if res.RowsAffected() == 0 {
