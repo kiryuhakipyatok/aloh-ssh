@@ -85,7 +85,6 @@ func (br *blockedRepository) FetchBlockedUsersById(ctx context.Context, userId u
 
 	query := `SELECT COALESCE(
     			json_agg(json_build_object(
-        		'identity', json_build_object(
             		'id', bu.blocker_id,
             		'nickname', u.nickname
         		)
