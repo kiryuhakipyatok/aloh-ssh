@@ -89,7 +89,7 @@ func (br *blockedRepository) FetchBlockedUsersById(ctx context.Context, userId u
             		'id', bu.blocker_id,
             		'nickname', u.nickname
         		)
-    			)), '[]') 
+    			)), '[]') FROM blocked_users bu
 			  JOIN users u ON bu.blocker_id = u.id
 			  WHERE bu.blocked_id = $1
 			`
