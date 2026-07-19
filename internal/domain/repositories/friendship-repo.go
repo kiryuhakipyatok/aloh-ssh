@@ -90,7 +90,6 @@ func (fr *friendshipRepository) DeleteFromFriends(ctx context.Context, userId, f
 
 func (fr *friendshipRepository) GetFriendsRequestForId(ctx context.Context, userId uuid.UUID) ([]uuid.UUID, error) {
 	op := "friendshipRepository.GetFriendsRequestForId"
-
 	query := `SELECT user_id2 FROM friends WHERE user_id1 = $1 AND status = 'pending'`
 	var friendReqs []uuid.UUID
 	rows, err := fr.storage.Pool.Query(ctx, query, userId)

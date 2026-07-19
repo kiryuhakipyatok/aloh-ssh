@@ -83,13 +83,14 @@ func (br *blockedRepository) UnblockUser(ctx context.Context, userId uuid.UUID, 
 func (br *blockedRepository) FetchBlockedUsersById(ctx context.Context, userId uuid.UUID) ([]models.Identity, error) {
 	op := "blockedRepository.GetBlockFetchBlockedUsersByIdedUsersById"
 
-	query := `SELECT json_agg(json_build_object(
-							'identity', json_build_object(
-            					'id', bu.blocker_id,
-            					'nickname', u.nickname
-        					)
-            			)) FROM blocked_users bu 
-			  JOIN users u ON bu.blocked_id = u.id
+	query := `SELECT COALESCE(
+    			json_agg(json_build_object(
+        		'identity', json_build_object(
+            		'id', bu.blocker_id,
+            		'nickname', u.nickname
+        		)
+    			)), '[]') 
+			  JOIN users u ON bu.blocker_id = u.id
 			  WHERE bu.blocked_id = $1
 			`
 	var blockers []models.Identity
