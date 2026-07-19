@@ -87,8 +87,7 @@ func (br *blockedRepository) FetchBlockedUsersById(ctx context.Context, userId u
     			json_agg(json_build_object(
             		'id', bu.blocker_id,
             		'nickname', u.nickname
-        		)
-    			)), '[]') FROM blocked_users bu
+        		)), '[]') FROM blocked_users bu
 			  JOIN users u ON bu.blocker_id = u.id
 			  WHERE bu.blocked_id = $1
 			`
