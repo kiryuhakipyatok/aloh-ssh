@@ -10,6 +10,7 @@ type (
 	TaglineData          = models.TaglineData
 	Identity             = models.Identity
 	NicknameData         = models.NicknameData
+	ColorData            = models.ColorData
 )
 
 const (
@@ -26,4 +27,5 @@ const (
 	UPDATE_SOFT_DENOISE = models.UPDATE_SOFT_DENOISE
 	UPDATE_TAGLINE      = models.UPDATE_TAGLINE
 	UPDATE_NICKNAME     = models.UPDATE_NICKNAME
+	UPDATE_COLOR        = models.UPDATE_COLOR
 )
