@@ -60,6 +60,7 @@ func NewServer(nss NewServerSetup) *Server {
 			"set-tagline":   s.setTaglineRequest(),
 			"set-color":     s.setColorRequest(),
 			"new-nickname":  s.newNicknameRequest(),
+			"new-password":  s.newPasswordRequest(),
 		},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
 			"event-channel": s.proccessEventChannel,

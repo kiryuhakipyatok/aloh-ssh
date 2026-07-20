@@ -21,7 +21,7 @@ func (s *Server) setPasswordRequest() ssh.RequestHandler {
 		}
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-	
+
 		if err := s.userService.SetPassword(appCtx, id, req.Payload); err != nil {
 			return false, castErr(err)
 		}
@@ -543,6 +543,30 @@ func (s *Server) newNicknameRequest() ssh.RequestHandler {
 		})
 
 		wg.Wait()
+
+		return true, nil
+	}
+}
+
+func (s *Server) newPasswordRequest() ssh.RequestHandler {
+	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+		id, ok := ctx.Value("userID").(uuid.UUID)
+		if !ok {
+			return false, castErr(errs.ErrInvalidTypeBase)
+		}
+		var pp struct {
+			OldPassword []byte `json:"old-password"`
+			NewPassword []byte `json:"new-password"`
+		}
+		if err := json.Unmarshal(req.Payload, &pp); err != nil {
+			return false, castErr(err)
+		}
+		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
+		defer cancel()
+
+		if err := s.userService.NewPassword(appCtx, id, pp.OldPassword, pp.NewPassword); err != nil {
+			return false, castErr(err)
+		}
 
 		return true, nil
 	}

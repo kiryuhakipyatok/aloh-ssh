@@ -28,6 +28,7 @@ type UserService interface {
 	SetTagline(ctx context.Context, id uuid.UUID, tagline string) error
 	SetColor(ctx context.Context, userID uuid.UUID, color string) error
 	NewNickname(ctx context.Context, userID uuid.UUID, nickname string, password []byte) error
+	NewPassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword []byte) error
 }
 
 type userService struct {
@@ -263,6 +264,36 @@ func (us *userService) NewNickname(ctx context.Context, userID uuid.UUID, nickna
 	}
 
 	log.Info("user's new nickname setted successfully", logUserId)
+
+	return nil
+}
+
+func (us *userService) NewPassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword []byte) error {
+	op := "userService.NewPassword"
+
+	log := us.logger.AddOp(op)
+	logUserId := logger.Attr("id", userID)
+	log.Info("setting new user's password", logUserId)
+	userPassword, err := us.userRepository.GetPasswordById(ctx, userID)
+	if err != nil {
+		log.Error("failed to get user's password", logUserId, logger.Err(err))
+		return errs.NewAppError(op, err)
+	}
+	if err := bcrypt.CompareHashAndPassword(userPassword, oldPassword); err != nil {
+		log.Error("failed to compare passwords", logUserId, logger.Err(err))
+		return errs.NewAppError(op, err)
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword(newPassword, 12)
+	if err != nil {
+		log.Error("failed to generate password hash", logger.Err(err), logUserId)
+		return errs.NewAppError(op, err)
+	}
+	if err := us.userRepository.SetPassword(ctx, userID, passwordHash); err != nil {
+		log.Error("failed to set password", logUserId, logger.Err(err))
+		return errs.NewAppError(op, err)
+	}
+
+	log.Info("user's new password setted successfully", logUserId)
 
 	return nil
 }
