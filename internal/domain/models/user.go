@@ -35,7 +35,7 @@ type Friend struct {
 
 type FriendAppereance struct {
 	Tagline string `json:"tagline"`
-	//Color   string `json:"color"`
+	Color   string `json:"color"`
 }
 
 // type FriendDenoises struct {

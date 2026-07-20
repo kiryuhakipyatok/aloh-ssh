@@ -13,7 +13,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
-func (s *Server) passwordRequest() ssh.RequestHandler {
+func (s *Server) setPasswordRequest() ssh.RequestHandler {
 	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
 		id, ok := ctx.Value("userID").(uuid.UUID)
 		if !ok {
@@ -21,12 +21,11 @@ func (s *Server) passwordRequest() ssh.RequestHandler {
 		}
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-
-		if err := s.userService.AddPassword(appCtx, id, req.Payload); err != nil {
-			if err := s.userService.DeleteUser(ctx, id); err != nil {
-			}
+	
+		if err := s.userService.SetPassword(appCtx, id, req.Payload); err != nil {
 			return false, castErr(err)
 		}
+
 		return true, nil
 	}
 }
@@ -404,6 +403,54 @@ func (s *Server) setTaglineRequest() ssh.RequestHandler {
 	}
 }
 
+func (s *Server) setColorRequest() ssh.RequestHandler {
+	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+		nickname := ctx.User()
+		id, ok := ctx.Value("userID").(uuid.UUID)
+		if !ok {
+			return false, castErr(errs.ErrInvalidTypeBase)
+		}
+		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
+		defer cancel()
+		var color string
+		if err := json.Unmarshal(req.Payload, &color); err != nil {
+			return false, castErr(err)
+		}
+		if err := s.userService.SetColor(appCtx, id, color); err != nil {
+			return false, castErr(err)
+		}
+
+		usersFriends, err := s.userService.GetUsersFriends(context.Background(), id)
+		if err != nil {
+			return false, castErr(err)
+		}
+
+		cdData, err := models.MarshCD(id, nickname, color)
+		if err != nil {
+			return false, castErr(err)
+		}
+
+		var wg sync.WaitGroup
+		for _, friend := range usersFriends {
+			wg.Go(func() {
+				friendSession, err := s.sessionService.GetSession(context.Background(), friend.ID)
+				if err != nil {
+					return
+				}
+				updateColorEvent := models.UpdateColorEvent(cdData)
+				select {
+				case friendSession.EventsChan <- updateColorEvent:
+				default:
+				}
+			})
+		}
+
+		wg.Wait()
+
+		return true, nil
+	}
+}
+
 func (s *Server) newNicknameRequest() ssh.RequestHandler {
 
 	return func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
@@ -415,11 +462,14 @@ func (s *Server) newNicknameRequest() ssh.RequestHandler {
 
 		appCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 		defer cancel()
-		var newNickname string
-		if err := json.Unmarshal(req.Payload, &newNickname); err != nil {
+		var nn struct {
+			NewNickname string `json:"new-nickname"`
+			Passoword   []byte `json:"password"`
+		}
+		if err := json.Unmarshal(req.Payload, &nn); err != nil {
 			return false, castErr(err)
 		}
-		if err := s.userService.NewNickname(appCtx, id, newNickname); err != nil {
+		if err := s.userService.NewNickname(appCtx, id, nn.NewNickname, nn.Passoword); err != nil {
 			return false, castErr(err)
 		}
 
@@ -438,7 +488,7 @@ func (s *Server) newNicknameRequest() ssh.RequestHandler {
 			return false, castErr(err)
 		}
 
-		ndData, err := models.MarshND(id, nickname, newNickname)
+		ndData, err := models.MarshND(id, nickname, nn.NewNickname)
 		if err != nil {
 			return false, castErr(err)
 		}

@@ -20,13 +20,14 @@ type UserService interface {
 	NewUser(ctx context.Context, nickname string, key ssh.PublicKey) (uuid.UUID, error)
 	GetUsersFriends(ctx context.Context, id uuid.UUID) ([]models.Friend, error)
 	GetUserByNickname(ctx context.Context, nickname string) (*models.User, error)
-	AddPassword(ctx context.Context, id uuid.UUID, password []byte) error
+	SetPassword(ctx context.Context, id uuid.UUID, password []byte) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	SetNewKey(ctx context.Context, id uuid.UUID, key []byte) error
 	CheckPassword(ctx context.Context, nickname string, password []byte) (uuid.UUID, error)
 	GetPersonalData(ctx context.Context, id uuid.UUID) (*models.PersonalData, error)
 	SetTagline(ctx context.Context, id uuid.UUID, tagline string) error
-	NewNickname(ctx context.Context, userID uuid.UUID, nickname string) error
+	SetColor(ctx context.Context, userID uuid.UUID, color string) error
+	NewNickname(ctx context.Context, userID uuid.UUID, nickname string, password []byte) error
 }
 
 type userService struct {
@@ -81,8 +82,8 @@ func (us *userService) NewUser(ctx context.Context, nickname string, key ssh.Pub
 	return id, nil
 }
 
-func (us *userService) AddPassword(ctx context.Context, id uuid.UUID, password []byte) error {
-	op := "userService.AddPassword"
+func (us *userService) SetPassword(ctx context.Context, id uuid.UUID, password []byte) error {
+	op := "userService.SetPassword"
 	log := us.logger.AddOp(op)
 	logUserId := logger.Attr("id", id)
 	log.Info("adding password to user", logUserId)
@@ -161,7 +162,7 @@ func (us *userService) CheckPassword(ctx context.Context, nickname string, passw
 	log := us.logger.AddOp(op)
 	logUserNickname := logger.Attr("nickname", nickname)
 	log.Info("checking user's password", logUserNickname)
-	userPassword, id, err := us.userRepository.GetPassword(ctx, nickname)
+	userPassword, id, err := us.userRepository.GetPasswordByNickname(ctx, nickname)
 	if err != nil {
 		log.Error("failed to get user's password", logger.Err(err), logUserNickname)
 		return uuid.Nil, errs.NewAppError(op, err)
@@ -225,12 +226,37 @@ func (us *userService) SetTagline(ctx context.Context, userID uuid.UUID, tagline
 	return nil
 }
 
-func (us *userService) NewNickname(ctx context.Context, userID uuid.UUID, nickname string) error {
+func (us *userService) SetColor(ctx context.Context, userID uuid.UUID, color string) error {
+	op := "userService.SetColor"
+
+	log := us.logger.AddOp(op)
+	logUserId := logger.Attr("id", userID)
+	log.Info("setting user's color", logUserId)
+	if err := us.userRepository.SetColor(ctx, userID, color); err != nil {
+		log.Error("failed to set color", logUserId, logger.Err(err))
+		return errs.NewAppError(op, err)
+	}
+
+	log.Info("user's color setted successfully", logUserId)
+
+	return nil
+}
+
+func (us *userService) NewNickname(ctx context.Context, userID uuid.UUID, nickname string, password []byte) error {
 	op := "userService.NewNickname"
 
 	log := us.logger.AddOp(op)
 	logUserId := logger.Attr("id", userID)
 	log.Info("setting new user's nickname", logUserId)
+	userPassword, err := us.userRepository.GetPasswordById(ctx, userID)
+	if err != nil {
+		log.Error("failed to get user's password", logUserId, logger.Err(err))
+		return errs.NewAppError(op, err)
+	}
+	if err := bcrypt.CompareHashAndPassword(userPassword, password); err != nil {
+		log.Error("failed to compare passwords", logUserId, logger.Err(err))
+		return errs.NewAppError(op, err)
+	}
 	if err := us.userRepository.EditNickname(ctx, userID, nickname); err != nil {
 		log.Error("failed to edit nickname", logUserId, logger.Err(err))
 		return errs.NewAppError(op, err)

@@ -20,6 +20,7 @@ const (
 	UPDATE_SOFT_DENOISE
 	UPDATE_TAGLINE
 	UPDATE_NICKNAME
+	UPDATE_COLOR
 )
 
 type Event struct {
@@ -45,6 +46,11 @@ type UsersSoftDenoiseData struct {
 type TaglineData struct {
 	Identity Identity `json:"identity"`
 	Tagline  string   `json:"tagline"`
+}
+
+type ColorData struct {
+	Identity Identity `json:"identity"`
+	Color    string   `json:"color"`
 }
 
 type NicknameData struct {
@@ -129,6 +135,13 @@ func UpdateTaglineEvent(td []byte) Event {
 	}
 }
 
+func UpdateColorEvent(cd []byte) Event {
+	return Event{
+		Type: UPDATE_COLOR,
+		Data: cd,
+	}
+}
+
 func UpdateNicknameEvent(nd []byte) Event {
 	return Event{
 		Type: UPDATE_NICKNAME,
@@ -158,6 +171,22 @@ func MarshTD(id uuid.UUID, nickname string, tagline string) ([]byte, error) {
 		Tagline: tagline,
 	}
 	data, err := json.Marshal(td)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func MarshCD(id uuid.UUID, nickname string, color string) ([]byte, error) {
+	cd := ColorData{
+		Identity: Identity{
+			ID:       id,
+			Nickname: nickname,
+		},
+		Color: color,
+	}
+	data, err := json.Marshal(cd)
 	if err != nil {
 		return nil, err
 	}

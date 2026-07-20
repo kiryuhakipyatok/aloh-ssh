@@ -17,11 +17,13 @@ type UserRepository interface {
 	GetUser(ctx context.Context, nickname string) (*models.User, error)
 	SetPassword(ctx context.Context, id uuid.UUID, password []byte) error
 	NewKeys(ctx context.Context, id uuid.UUID, key, fingerprint string) error
-	GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error)
+	GetPasswordByNickname(ctx context.Context, nickname string) ([]byte, uuid.UUID, error)
+	GetPasswordById(ctx context.Context, id uuid.UUID) ([]byte, error)
 	GetPersonalData(ctx context.Context, id uuid.UUID) (*models.PersonalData, error)
 	GetUsersFriends(ctx context.Context, id uuid.UUID) ([]models.Friend, error)
 	SetTagline(ctx context.Context, id uuid.UUID, tagline string) error
 	EditNickname(ctx context.Context, id uuid.UUID, nickname string) error
+	SetColor(ctx context.Context, id uuid.UUID, color string) error
 }
 
 type userRepository struct {
@@ -149,7 +151,8 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
             					'nickname', friend_resolv.nickname
         					),
         					'appereance', json_build_object(
-            					'tagline', friend_resolv.tagline
+            					'tagline', friend_resolv.tagline,
+								'color', friend_resolv.color
         					)
     					))
 				FROM friends f JOIN users friend_resolv ON 
@@ -208,7 +211,7 @@ func (ur *userRepository) NewKeys(ctx context.Context, id uuid.UUID, key, finger
 	return nil
 }
 
-func (ur *userRepository) GetPassword(ctx context.Context, nickname string) ([]byte, uuid.UUID, error) {
+func (ur *userRepository) GetPasswordByNickname(ctx context.Context, nickname string) ([]byte, uuid.UUID, error) {
 	op := "userRepository.GetPassword"
 	query := "SELECT id, password FROM users WHERE nickname = $1"
 	var res struct {
@@ -227,10 +230,37 @@ func (ur *userRepository) GetPassword(ctx context.Context, nickname string) ([]b
 	return res.pswrd, res.id, nil
 }
 
+func (ur *userRepository) GetPasswordById(ctx context.Context, id uuid.UUID) ([]byte, error) {
+	op := "userRepository.GetPassword"
+	query := "SELECT password FROM users WHERE id = $1"
+	var pswrd []byte
+
+	if err := ur.storage.Pool.QueryRow(ctx, query, id).Scan(&pswrd); err != nil {
+		if errors.Is(err, storage.ErrNotFound()) {
+			return nil, errs.ErrNotFound(op)
+		}
+		return nil, errs.NewAppError(op, err)
+	}
+	return pswrd, nil
+}
+
 func (ur *userRepository) SetTagline(ctx context.Context, id uuid.UUID, tagline string) error {
 	op := "userRepository.SetTalgile"
 	query := "UPDATE users SET tagline=$1 WHERE id=$2"
 	res, err := ur.storage.Pool.Exec(ctx, query, tagline, id)
+	if err != nil {
+		return errs.NewAppError(op, err)
+	}
+	if res.RowsAffected() == 0 {
+		return errs.ErrNotFound(op)
+	}
+	return nil
+}
+
+func (ur *userRepository) SetColor(ctx context.Context, id uuid.UUID, color string) error {
+	op := "userRepository.SetTalgile"
+	query := "UPDATE users SET color=$1 WHERE id=$2"
+	res, err := ur.storage.Pool.Exec(ctx, query, color, id)
 	if err != nil {
 		return errs.NewAppError(op, err)
 	}

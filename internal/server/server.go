@@ -47,7 +47,7 @@ func NewServer(nss NewServerSetup) *Server {
 		Addr:             addr,
 		PublicKeyHandler: s.publicKeyHandler(),
 		RequestHandlers: map[string]ssh.RequestHandler{
-			"pswrd":         s.passwordRequest(),
+			"set-password":  s.setPasswordRequest(),
 			"key":           s.setNewKeyRequest(),
 			"new-friend":    s.newFriendRequest(),
 			"accept-friend": s.acceptFriendshipRequest(),
@@ -58,6 +58,7 @@ func NewServer(nss NewServerSetup) *Server {
 			"unblock-user":  s.unblockUserRequest(),
 			"conns-update":  s.updateCurOnlineRequest(),
 			"set-tagline":   s.setTaglineRequest(),
+			"set-color":     s.setColorRequest(),
 			"new-nickname":  s.newNicknameRequest(),
 		},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
