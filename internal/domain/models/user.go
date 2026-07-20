@@ -16,6 +16,7 @@ type User struct {
 type PersonalData struct {
 	Identity     Identity    `json:"identity"`
 	Tagline      string      `json:"tagline"`
+	Color        string      `json:"string"`
 	RegisterTime time.Time   `json:"registerTime"`
 	FriendsReqs  []FriendReq `json:"friendsReqs"`
 	Friends      []Friend    `json:"friends"`

@@ -133,7 +133,7 @@ func (ur *userRepository) GetUsersFriends(ctx context.Context, id uuid.UUID) ([]
 
 func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*models.PersonalData, error) {
 	op := "userRepository.GetPersonalData"
-	query := `SELECT u.id, u.nickname, u.register_time, u.tagline,
+	query := `SELECT u.id, u.nickname, u.register_time, u.tagline, u.color,
     		  COALESCE((
               	SELECT json_agg(json_build_object(
 							'identity', json_build_object(
@@ -173,6 +173,7 @@ func (ur *userRepository) GetPersonalData(ctx context.Context, id uuid.UUID) (*m
 		&pd.Identity.Nickname,
 		&pd.RegisterTime,
 		&pd.Tagline,
+		&pd.Color,
 		&pd.FriendsReqs,
 		&pd.Friends,
 		&pd.BlockedUsers,
