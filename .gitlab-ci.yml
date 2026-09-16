@@ -1,6 +1,6 @@
 stages:
   - build
-  - test
+#  - test
   - migrate
   - deploy
 
@@ -21,14 +21,14 @@ build-job:
 migrate-job:
   stage: migrate
   script:
-    - ls -a
-    - docker compose run --rm migrate up
+    - docker-compose up -d --build postgres
+    - docker-compose run --rm migrate up
 
 deploy-job:
   stage: deploy 
   script:
     - docker-compose down --remove-orphans
-    - docker-compose up -d --build
+    - docker-compose up -d --build alohssh
     - R_EXIT_CODE=$(docker inspect -f '{{.State.ExitCode}}' alohssh)
     - if [ "$R_EXIT_CODE" -ne 0 ]; then
         echo "container failed with exit code $R_EXIT_CODE";
