@@ -38,6 +38,9 @@ services:
       - .env
     entrypoint: ["goose", "-dir", "/migrations"]
     command: ["postgres", "$$GOOSE_DBSTRING", "up"]
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - aloh-ssh-network
   
