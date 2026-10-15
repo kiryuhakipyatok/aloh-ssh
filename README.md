@@ -114,11 +114,36 @@ The project follows a clean, layered architectural pattern:
 
 ## Features
 
-### Authentication & Registration
 
-- **Public Key Registration**: New users register by connecting with SSH client version `SSH-2.0-aloh-register`, supplying an SSH public key.
-- **Password Authentication**: Existing users authenticate with their nickname and password using client version `SSH-2.0-aloh-login`.
-- **Password Management**: Users can set an initial password after key registration and change it at any time by providing both the old and new passwords.
+### Authentication
+
+The app uses a two-phase SSH-based authentication system with Ed25519 key pairs stored in `keys/id_ed25519`:
+
+#### Authentication Flow
+
+| Phase | Client Version | Description |
+|---|---|---|
+| **Registration** | `SSH-2.0-aloh-register` | New users register by connecting with an SSH public key |
+| **Login (Key-Based)** | `SSH-2.0-aloh-default` | Returning users authenticate using their previously generated SSH key |
+| **Login (Password-Based)** | `SSH-2.0-aloh-login` | Password authentication used when no keys exist or for initial setup |
+
+#### How It Works
+
+1. **First-time registration**: When no SSH keys exist locally, the app generates a new Ed25519 key pair and authenticates using `SSH-2.0-aloh-register` client version. The user supplies a strong password (minimum 72 bits of entropy) which is sent via the `set-password` SSH request.
+
+2. **Subsequent logins (key-based)**: After registration, keys are stored in `keys/id_ed25519`. On future logins, the app uses `SSH-2.0-aloh-default` client version and authenticates via the SSH public key. **Password is not required for normal login** — it's only used when keys don't exist to bootstrap the initial registration.
+
+3. **Password-based login**: If keys are missing or corrupted (e.g., fresh install, deleted keys directory), the app falls back to `SSH-2.0-aloh-login` client version, requiring the user's password for authentication. This is primarily intended for initial account recovery and key regeneration.
+
+4. **Password Management**: Users can change their password at any time by providing both the old and new passwords (password change requires the `new-password` SSH request).
+
+#### Key Files
+
+| File | Description |
+|---|---|
+| `keys/id_ed25519` | Private key (generated, never sent to server) |
+| `keys/id_ed25519.pub` | Public key (sent to server for registration/login) |
+| `userdata.json` | Persisted user data (identity, friends, preferences) |
 
 ### User Profiles
 
